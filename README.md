@@ -90,3 +90,25 @@ entre redeploys.
 Esta build sigue usando la capa VLR que ya funcionó en v3.0.4. Antes de convertirlo en un servicio
 comercial público conviene revisar permisos/licencia de la fuente de datos o sustituir esa capa por
 una fuente autorizada.
+
+
+## v4.0.1 Railway hotfix
+
+Railway deployment could crash with:
+
+```text
+Error: Cannot find module './providers/demo'
+Require stack:
+- /app/server.js
+```
+
+`demo.js` is now an optional development-only provider. The production server no longer
+fails if that file is missing from a GitHub upload. Normal hosted mode continues using VLR.
+
+Healthcheck:
+
+```text
+GET /health
+```
+
+returns version `4.0.1`.

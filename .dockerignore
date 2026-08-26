@@ -1,5 +1,6 @@
-.git
 node_modules
-data/rooms.json
-*.zip
+npm-debug.log
+data
 logs
+.git
+.gitignore

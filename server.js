@@ -3,7 +3,12 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { URL } = require("url");
-const { getRunningMatches: getDemoMatches } = require("./providers/demo");
+let getDemoMatches = async () => [];
+try {
+  ({ getRunningMatches: getDemoMatches } = require("./providers/demo"));
+} catch (err) {
+  console.warn("[startup] providers/demo.js not found; DEMO_MODE disabled.");
+}
 const { getRunningMatches: getVlrMatches, getNearestUpcoming, DEFAULT_BRIDGE } = require("./providers/vlr_local");
 
 const PORT = Number(process.env.PORT || 8787);
@@ -13,7 +18,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const ROOMS_FILE = path.join(DATA_DIR, "rooms.json");
 const DEFAULT_ROOM_TTL_DAYS = Math.max(1, Number(process.env.ROOM_TTL_DAYS || 30));
 const MAX_ROOMS = Math.max(10, Number(process.env.MAX_ROOMS || 1000));
-const USE_DEMO = process.env.DEMO_MODE === "1";
+const USE_DEMO = process.env.DEMO_MODE === "1" && typeof getDemoMatches === "function";
 const vlrApiBase = String(process.env.VLR_LIVE_BRIDGE || DEFAULT_BRIDGE).replace(/\/+$/, "");
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -208,7 +213,7 @@ function routeRoomApi(req,res,url,parts){
 const server=http.createServer((req,res)=>{
   const url=new URL(req.url,`http://${req.headers.host||"localhost"}`); const parts=url.pathname.split("/").filter(Boolean);
   if(req.method==="OPTIONS"){res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type,X-Admin-Key","Access-Control-Allow-Methods":"GET,POST,OPTIONS"});return res.end()}
-  if(url.pathname==="/health")return json(res,200,{ok:true,version:"4.0.0",rooms:rooms.size,live:matches.length,providerError});
+  if(url.pathname==="/health")return json(res,200,{ok:true,version:"4.0.1",rooms:rooms.size,live:matches.length,providerError});
   if(req.method==="GET"&&url.pathname==="/api/config")return json(res,200,{provider:USE_DEMO?"demo":"vlr",providerError,pollMs:POLL_MS,activeBridge});
   if(req.method==="POST"&&url.pathname==="/api/rooms"){
     if(rooms.size>=MAX_ROOMS) return json(res,429,{error:"Room limit reached"});
@@ -234,7 +239,7 @@ setInterval(refreshMatches,POLL_MS).unref();
 setInterval(pruneRooms,6*60*60*1000).unref();
 
 server.listen(PORT,"0.0.0.0",()=>{
-  console.log("VALORANT Live Overlay v4.0 · HOSTED");
+  console.log("VALORANT Live Overlay v4.0.1 · HOSTED HOTFIX");
   console.log(`Web: http://localhost:${PORT}/`);
   console.log(`Rooms: ${rooms.size}`);
   console.log(`Polling: ${POLL_MS/1000}s`);
