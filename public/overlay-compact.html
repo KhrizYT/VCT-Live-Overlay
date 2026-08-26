@@ -535,6 +535,13 @@
 
 <script>
 const el = id => document.getElementById(id);
+
+// Hosted mode: obtain the room id from /overlay/ROOM-ID.
+// v4.0.1 referenced `roomId` below without declaring it, which made
+// the Browser Source stop before the first fetch and left the preview blank.
+const pathParts = location.pathname.split("/").filter(Boolean);
+const roomId = pathParts[0] === "overlay" ? pathParts[1] : null;
+
 let previous = null;
 const accentCache = new Map();
 
@@ -887,9 +894,30 @@ async function render(s) {
 
   previous = JSON.parse(JSON.stringify(s));
 }
-fetch(`/api/rooms/${roomId}/state`).then(r=>r.json()).then(render).catch(()=>{});
-const events = new EventSource(`/events/${roomId}`);
-events.addEventListener("state", e => { try { render(JSON.parse(e.data)); } catch {} });
+if (!roomId) {
+  el("overlay").hidden = true;
+  el("waiting").style.display = "block";
+  el("waiting").textContent = "ROOM ID NO ENCONTRADO";
+} else {
+  fetch(`/api/rooms/${roomId}/state`)
+    .then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
+    .then(render)
+    .catch(err => {
+      console.error("[overlay] initial state failed:", err);
+      el("overlay").hidden = true;
+      el("waiting").style.display = "block";
+      el("waiting").textContent = "NO SE PUDO CARGAR EL OVERLAY";
+    });
+
+  const events = new EventSource(`/events/${roomId}`);
+  events.addEventListener("state", e => {
+    try { render(JSON.parse(e.data)); }
+    catch (err) { console.error("[overlay] state parse failed:", err); }
+  });
+}
 </script>
 </body>
 </html>
