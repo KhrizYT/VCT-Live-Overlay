@@ -1,0 +1,8 @@
+{
+  "name": "valorant-live-overlay-hosted",
+  "version": "4.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  }
+}

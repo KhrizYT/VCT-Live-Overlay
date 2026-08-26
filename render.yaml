@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: valorant-live-overlay
+    runtime: docker
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: ROOM_TTL_DAYS
+        value: 30
+      - key: POLL_MS
+        value: 10000

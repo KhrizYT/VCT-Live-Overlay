@@ -1,0 +1,15 @@
+services:
+  overlay:
+    build: .
+    ports:
+      - "8787:8787"
+    environment:
+      PORT: 8787
+      DATA_DIR: /app/data
+      POLL_MS: 10000
+      ROOM_TTL_DAYS: 30
+    volumes:
+      - overlay_data:/app/data
+    restart: unless-stopped
+volumes:
+  overlay_data:
