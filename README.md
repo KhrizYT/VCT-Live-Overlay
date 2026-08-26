@@ -112,3 +112,76 @@ GET /health
 ```
 
 returns version `4.0.1`.
+
+
+## v4.0.2 hosted overlay fix
+
+The hosted overlay page used `roomId` in:
+
+```js
+fetch(`/api/rooms/${roomId}/state`)
+```
+
+but `roomId` had never been declared in `overlay-compact.html`.
+
+That caused a JavaScript `ReferenceError` before the first API request, leaving both the
+Admin preview and the OBS Browser Source blank.
+
+v4.0.2 now reads the room id from:
+
+```text
+/overlay/ROOM-ID
+```
+
+before connecting to the room state and SSE endpoint.
+
+The Admin preview background was also changed from solid white to a dark checkerboard so
+transparent Browser Source content is easier to verify.
+
+
+## v4.1 · Hosted polish
+
+### OBS recomendado
+
+```text
+Browser Source
+Ancho: 500
+Alto: 160
+FPS: 30
+```
+
+El overlay ahora se centra horizontal y verticalmente dentro de cualquier Browser Source.
+`500 × 160` es la medida recomendada porque deja espacio suficiente para el glow sin crear
+una fuente innecesariamente grande.
+
+### Panel de administración
+
+v4.1 añade:
+
+- Configuración OBS visible dentro del panel.
+- Botón para copiar URL de OBS.
+- Botón para copiar URL privada del Admin.
+- Estado visual de VLR.
+- Renombrar room.
+- Regenerar la clave privada del Admin.
+- Eliminar room.
+- Preview real a `500 × 160`.
+- URLs HTTPS correctas detrás de Railway/otros reverse proxies.
+
+### Seguridad
+
+La URL:
+
+```text
+/overlay/ROOM
+```
+
+puede compartirse.
+
+La URL:
+
+```text
+/admin/ROOM?key=...
+```
+
+es privada. Si se filtra, usa **Regenerar clave privada**.

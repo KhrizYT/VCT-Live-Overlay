@@ -1,12 +1,422 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VALORANT Live Overlay · Admin</title>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VALORANT Live Overlay · Admin</title>
 <style>
-:root{color-scheme:dark;--panel:#131720;--panel2:#191e28;--text:#f4f7fb;--muted:#8d97a8;--line:#2a3140;--accent:#ff4655;--good:#50d890}*{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#0b0d12,#10141d 60%,#0b0d12);color:var(--text);font:15px/1.45 Inter,system-ui,sans-serif;min-height:100vh}main{max-width:1120px;margin:auto;padding:26px 18px 60px}h1{margin:0;font-size:27px;letter-spacing:-.04em}.sub{color:var(--muted);margin:6px 0 18px}.top{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}.pill{border:1px solid var(--line);background:var(--panel);padding:7px 10px;border-radius:999px;color:var(--muted);font-size:13px}.pill b{color:#fff}.grid{display:grid;grid-template-columns:1.15fr .85fr;gap:18px}.card{background:rgba(19,23,32,.92);border:1px solid var(--line);border-radius:16px;padding:16px}h2{font-size:14px;text-transform:uppercase;letter-spacing:.12em;color:#a9b2c2;margin:0 0 13px}.matches{display:grid;gap:9px}.match{width:100%;text-align:left;display:grid;grid-template-columns:1fr auto;gap:12px;padding:13px;background:#10141c;border:1px solid var(--line);color:#fff;border-radius:10px;cursor:pointer}.match.selected{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.teams{font-weight:850;font-size:17px}.meta{display:block;color:var(--muted);font-size:12px;margin-top:3px}.score{font-size:20px;font-weight:950;align-self:center;text-align:right}button{border:1px solid var(--line);background:var(--panel2);color:#fff;border-radius:10px;padding:10px 13px;font:inherit;cursor:pointer}button:hover{border-color:#566075}.primary{background:var(--accent);border-color:var(--accent);font-weight:800}.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1}.setting{margin-top:13px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#10141c}.setting-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:8px}.valuepill{font-weight:800}input[type=range]{width:100%;accent-color:var(--accent)}.urlbox{background:#10141c;border:1px solid var(--line);padding:10px 12px;border-radius:12px;font-size:13px;margin-top:10px}code{color:#dfe7f6;word-break:break-all}.preview{margin-top:18px;border:1px solid var(--line);background:#fff;border-radius:16px;overflow:hidden}.preview iframe{width:100%;aspect-ratio:16/5;min-height:230px;border:0;display:block}.copy{font-size:12px;margin-top:7px}.status{padding:10px 12px;border:1px solid rgba(80,216,144,.35);border-radius:12px;color:#a7efc8;margin-bottom:14px;background:#10141c}@media(max-width:780px){.grid{grid-template-columns:1fr}}
-</style></head><body><main><h1>VALORANT Live Overlay <span style="color:#ff4655">v4.0 · HOSTED</span></h1><p class="sub">Tu overlay ya vive en el servidor. Comparte la URL del Browser Source y no necesitan instalar nada.</p><div class="status" id="status">Conectando…</div><div class="top"><span class="pill">Room: <b id="roomId">—</b></span><span class="pill">Live: <b id="liveCount">0</b></span><span class="pill">Match: <b id="selectedLabel">—</b></span><button id="auto">Modo automático</button><button id="refresh">Actualizar datos</button></div><div class="grid"><section class="card"><h2>Matches live</h2><div id="matches" class="matches"></div></section><section class="card"><h2>Tu overlay</h2><div class="setting"><div class="setting-head"><div><b>Opacidad</b><span class="meta">Fondo del panel</span></div><div class="valuepill" id="opacityValue">92%</div></div><input id="opacityRange" type="range" min="35" max="100" value="92"></div><div class="setting"><div class="setting-head"><div><b>Glow</b><span class="meta">Brillo exterior</span></div><div class="valuepill" id="glowValue">82%</div></div><input id="glowRange" type="range" min="0" max="160" value="82"></div><div class="urlbox"><b>Browser Source de OBS</b><br><code id="overlayUrl"></code><div class="copy"><button id="copyOverlay">Copiar URL</button></div></div><div class="urlbox"><b>Panel de control</b><br><code id="adminUrl"></code><span class="meta">Guarda este enlace: contiene la clave para modificar este overlay.</span></div></section></div><div class="preview"><iframe id="preview"></iframe></div></main>
+:root{
+  color-scheme:dark;
+  --panel:#131720;--panel2:#191e28;--text:#f4f7fb;--muted:#8d97a8;
+  --line:#2a3140;--accent:#ff4655;--good:#50d890;--warn:#f1bd58;--danger:#ff5e69
+}
+*{box-sizing:border-box}
+body{
+  margin:0;min-height:100vh;color:var(--text);
+  background:linear-gradient(160deg,#0b0d12,#10141d 60%,#0b0d12);
+  font:15px/1.45 Inter,system-ui,sans-serif
+}
+main{max-width:1120px;margin:auto;padding:26px 18px 60px}
+h1{margin:0;font-size:27px;letter-spacing:-.04em}
+.sub{color:var(--muted);margin:6px 0 18px}
+.top{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.pill{
+  border:1px solid var(--line);background:var(--panel);padding:7px 10px;
+  border-radius:999px;color:var(--muted);font-size:13px
+}
+.pill b{color:#fff}
+.pill.good{border-color:rgba(80,216,144,.38);color:#9be7bd}
+.pill.warn{border-color:rgba(241,189,88,.4);color:#f5d28f}
+.grid{display:grid;grid-template-columns:1.15fr .85fr;gap:18px}
+.card{background:rgba(19,23,32,.92);border:1px solid var(--line);border-radius:16px;padding:16px}
+h2{font-size:14px;text-transform:uppercase;letter-spacing:.12em;color:#a9b2c2;margin:0 0 13px}
+.matches{display:grid;gap:9px}
+.match{
+  width:100%;text-align:left;display:grid;grid-template-columns:1fr auto;gap:12px;
+  padding:13px;background:#10141c;border:1px solid var(--line);color:#fff;border-radius:10px;cursor:pointer
+}
+.match.selected{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}
+.teams{font-weight:850;font-size:17px}
+.meta{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+.score{font-size:20px;font-weight:950;align-self:center;text-align:right}
+button{
+  border:1px solid var(--line);background:var(--panel2);color:#fff;border-radius:10px;
+  padding:10px 13px;font:inherit;cursor:pointer
+}
+button:hover{border-color:#566075}
+button:disabled{opacity:.55;cursor:not-allowed}
+.primary{background:var(--accent);border-color:var(--accent);font-weight:800}
+.danger{border-color:rgba(255,94,105,.45);color:#ffadb3}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1}
+.setting{margin-top:13px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#10141c}
+.setting-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:8px}
+.valuepill{font-weight:800}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=text]{
+  width:100%;border:1px solid var(--line);background:#0c1017;color:#fff;
+  border-radius:10px;padding:10px 11px;font:inherit
+}
+.urlbox{background:#10141c;border:1px solid var(--line);padding:11px 12px;border-radius:12px;font-size:13px;margin-top:10px}
+code{color:#dfe7f6;word-break:break-all}
+.copy{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+.copy button{font-size:12px;padding:8px 10px}
+.status{
+  padding:10px 12px;border:1px solid rgba(80,216,144,.35);border-radius:12px;
+  color:#a7efc8;margin-bottom:14px;background:#10141c
+}
+.obs-guide{
+  margin-top:13px;padding:13px;border:1px solid rgba(95,213,232,.25);
+  border-radius:14px;background:linear-gradient(135deg,rgba(95,213,232,.07),#10141c 48%)
+}
+.obs-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.obs-title{font-weight:850}
+.obs-badge{
+  white-space:nowrap;border:1px solid rgba(95,213,232,.32);color:#a9edf6;
+  padding:5px 8px;border-radius:999px;font-size:11px
+}
+.obs-values{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}
+.obs-value{padding:9px 8px;text-align:center;border:1px solid var(--line);border-radius:10px;background:#0d1118}
+.obs-value b{font-size:16px;display:block}.obs-value span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.room-tools{margin-top:13px;padding-top:13px;border-top:1px solid var(--line)}
+.room-tools .meta{margin-bottom:8px}
+.preview-shell{margin-top:18px}
+.preview-label{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px;margin-bottom:7px}
+.preview{
+  min-height:206px;display:grid;place-items:center;border:1px solid var(--line);
+  background:repeating-conic-gradient(#1a1f29 0 25%,#11151d 0 50%) 50%/20px 20px;
+  border-radius:16px;overflow:auto;padding:22px
+}
+.preview iframe{width:500px;height:160px;max-width:100%;border:1px dashed rgba(255,255,255,.17);display:block;background:transparent}
+.toast{
+  position:fixed;right:18px;bottom:18px;background:#171c25;border:1px solid var(--line);
+  border-radius:11px;padding:10px 13px;box-shadow:0 12px 35px rgba(0,0,0,.35);
+  opacity:0;transform:translateY(8px);pointer-events:none;transition:.18s ease
+}
+.toast.show{opacity:1;transform:translateY(0)}
+@media(max-width:780px){.grid{grid-template-columns:1fr}.obs-values{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<main>
+  <h1>VALORANT Live Overlay <span style="color:#ff4655">v4.1 · HOSTED</span></h1>
+  <p class="sub">Controla tu overlay desde aquí. OBS solo necesita la URL del Browser Source.</p>
+
+  <div class="status" id="status">Conectando…</div>
+
+  <div class="top">
+    <span class="pill">Room: <b id="roomId">—</b></span>
+    <span class="pill" id="sourcePill">VLR: <b id="sourceState">…</b></span>
+    <span class="pill">Live: <b id="liveCount">0</b></span>
+    <span class="pill">Match: <b id="selectedLabel">—</b></span>
+    <button id="auto">Modo automático</button>
+    <button id="refresh">Actualizar datos</button>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Matches live</h2>
+      <div id="matches" class="matches"></div>
+    </section>
+
+    <section class="card">
+      <h2>Tu overlay</h2>
+
+      <div class="setting">
+        <div class="setting-head">
+          <div><b>Opacidad</b><span class="meta">Fondo del panel</span></div>
+          <div class="valuepill" id="opacityValue">92%</div>
+        </div>
+        <input id="opacityRange" type="range" min="35" max="100" value="92">
+      </div>
+
+      <div class="setting">
+        <div class="setting-head">
+          <div><b>Glow</b><span class="meta">Brillo exterior</span></div>
+          <div class="valuepill" id="glowValue">82%</div>
+        </div>
+        <input id="glowRange" type="range" min="0" max="160" value="82">
+      </div>
+
+      <div class="obs-guide">
+        <div class="obs-head">
+          <div>
+            <div class="obs-title">Configuración recomendada para OBS</div>
+            <span class="meta">El overlay queda centrado automáticamente dentro de la fuente.</span>
+          </div>
+          <span class="obs-badge">Browser Source</span>
+        </div>
+        <div class="obs-values">
+          <div class="obs-value"><b id="obsWidth">500</b><span>Ancho</span></div>
+          <div class="obs-value"><b id="obsHeight">160</b><span>Alto</span></div>
+          <div class="obs-value"><b id="obsFps">30</b><span>FPS</span></div>
+        </div>
+        <div class="copy">
+          <button id="copyObsSetup">Copiar configuración</button>
+        </div>
+      </div>
+
+      <div class="urlbox">
+        <b>Browser Source de OBS</b><br>
+        <code id="overlayUrl"></code>
+        <div class="copy">
+          <button id="copyOverlay" class="primary">Copiar URL</button>
+        </div>
+      </div>
+
+      <div class="urlbox">
+        <b>Panel de control privado</b><br>
+        <code id="adminUrl"></code>
+        <span class="meta">No compartas esta URL: contiene tu clave de administración.</span>
+        <div class="copy">
+          <button id="copyAdmin">Copiar panel privado</button>
+        </div>
+      </div>
+
+      <div class="room-tools">
+        <span class="meta">Administrar room</span>
+        <div class="row">
+          <input id="roomName" type="text" maxlength="60" placeholder="Nombre del overlay">
+          <button id="rename">Renombrar</button>
+        </div>
+        <div class="copy">
+          <button id="regenKey">Regenerar clave privada</button>
+          <button id="deleteRoom" class="danger">Eliminar overlay</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="preview-shell">
+    <div class="preview-label">
+      <span>Preview real de Browser Source</span>
+      <span>500 × 160</span>
+    </div>
+    <div class="preview"><iframe id="preview" scrolling="no"></iframe></div>
+  </div>
+</main>
+
+<div id="toast" class="toast"></div>
+
 <script>
-const $=s=>document.querySelector(s),parts=location.pathname.split('/').filter(Boolean),roomId=parts[1],key=new URLSearchParams(location.search).get('key')||'';let ot,gt;
-const api=async(path,opts={})=>{const r=await fetch(`/api/rooms/${roomId}/${path}`,{...opts,headers:{'Content-Type':'application/json','X-Admin-Key':key,...(opts.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);return d};const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-async function load(){try{const [info,data,state]=await Promise.all([api('info'),api('matches'),api('state')]);$('#roomId').textContent=roomId;$('#liveCount').textContent=data.liveCount;$('#selectedLabel').textContent=state.team1?`${state.team1.code} vs ${state.team2.code}`:'—';const o=Math.round((info.settings?.backgroundOpacity??.92)*100),g=Math.round((info.settings?.glowIntensity??.82)*100);$('#opacityRange').value=o;$('#opacityValue').textContent=`${o}%`;$('#glowRange').value=g;$('#glowValue').textContent=`${g}%`;renderMatches(data);$('#status').textContent=data.providerError?`Fuente con aviso: ${data.providerError}`:'Conectado. Los cambios se reflejan inmediatamente en OBS.'}catch(e){$('#status').textContent=`Error: ${e.message}`}}
-function renderMatches(d){const box=$('#matches');box.innerHTML='';if(!d.matches.length){const u=d.nearestUpcoming;if(u?.teams?.length>=2){box.innerHTML=`<div class="match"><span><span class="teams">NEXT · ${esc(u.teams[0].acronym||u.teams[0].name)} vs ${esc(u.teams[1].acronym||u.teams[1].name)}</span><span class="meta">${esc(u.event)}<br>${esc(u.stage)}</span></span><span class="score">${esc(u.etaText||'SOON')}</span></div>`}else box.innerHTML='<span class="meta">No hay matches live ni próximas.</span>';return}for(const m of d.matches){const t1=m.teams?.[0]?.acronym||m.teams?.[0]?.name||'TBD',t2=m.teams?.[1]?.acronym||m.teams?.[1]?.name||'TBD';const b=document.createElement('button');b.className='match'+(String(d.selectedId)===String(m.id)?' selected':'');b.innerHTML=`<span><span class="teams">${esc(t1)} vs ${esc(t2)}</span><span class="meta">${esc(m.event)}<br>${esc(m.stage||'')} · ${esc(m.mapName||'')}</span></span><span class="score">${m.roundScore?.[0]??0}–${m.roundScore?.[1]??0}<span class="meta">${m.seriesScore?.[0]??0}–${m.seriesScore?.[1]??0} maps</span></span>`;b.onclick=async()=>{await api('select',{method:'POST',body:JSON.stringify({id:m.id})});load()};box.appendChild(b)}}
-$('#auto').onclick=async()=>{await api('auto',{method:'POST',body:'{}'});load()};$('#refresh').onclick=async()=>{await fetch('/api/refresh',{method:'POST'});load()};$('#opacityRange').oninput=()=>{const v=Number($('#opacityRange').value);$('#opacityValue').textContent=`${v}%`;clearTimeout(ot);ot=setTimeout(()=>api('settings',{method:'POST',body:JSON.stringify({backgroundOpacity:v/100})}),100)};$('#glowRange').oninput=()=>{const v=Number($('#glowRange').value);$('#glowValue').textContent=`${v}%`;clearTimeout(gt);gt=setTimeout(()=>api('settings',{method:'POST',body:JSON.stringify({glowIntensity:v/100})}),100)};
-const overlayUrl=`${location.origin}/overlay/${roomId}`;$('#overlayUrl').textContent=overlayUrl;$('#adminUrl').textContent=location.href;$('#preview').src=overlayUrl;$('#copyOverlay').onclick=async()=>{await navigator.clipboard.writeText(overlayUrl);$('#copyOverlay').textContent='Copiado ✓';setTimeout(()=>$('#copyOverlay').textContent='Copiar URL',1200)};const ev=new EventSource(`/events/${roomId}`);ev.addEventListener('state',e=>{try{const s=JSON.parse(e.data);$('#selectedLabel').textContent=s.team1?`${s.team1.code} vs ${s.team2.code}`:'—'}catch{}});load();
-</script></body></html>
+const $=s=>document.querySelector(s);
+const parts=location.pathname.split('/').filter(Boolean);
+const roomId=parts[1];
+let key=new URLSearchParams(location.search).get('key')||'';
+let ot,gt,currentObs={width:500,height:160,fps:30};
+
+const api=async(path,opts={})=>{
+  const r=await fetch(`/api/rooms/${roomId}/${path}`,{
+    ...opts,
+    headers:{'Content-Type':'application/json','X-Admin-Key':key,...(opts.headers||{})}
+  });
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);
+  return d
+};
+
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({
+  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+}[c]));
+
+function toast(message){
+  const t=$('#toast');
+  t.textContent=message;
+  t.classList.add('show');
+  clearTimeout(toast.timer);
+  toast.timer=setTimeout(()=>t.classList.remove('show'),1500);
+}
+
+function setSourceStatus(providerError){
+  const pill=$('#sourcePill');
+  const state=$('#sourceState');
+  if(providerError){
+    pill.classList.remove('good');
+    pill.classList.add('warn');
+    state.textContent='AVISO';
+  }else{
+    pill.classList.remove('warn');
+    pill.classList.add('good');
+    state.textContent='OK';
+  }
+}
+
+async function load(){
+  try{
+    const [info,data,state]=await Promise.all([api('info'),api('matches'),api('state')]);
+
+    $('#roomId').textContent=roomId;
+    $('#liveCount').textContent=data.liveCount;
+    $('#selectedLabel').textContent=state.team1?`${state.team1.code} vs ${state.team2.code}`:'—';
+    $('#roomName').value=info.name||'';
+
+    currentObs=info.obs||currentObs;
+    $('#obsWidth').textContent=currentObs.width;
+    $('#obsHeight').textContent=currentObs.height;
+    $('#obsFps').textContent=currentObs.fps;
+
+    const o=Math.round((info.settings?.backgroundOpacity??.92)*100);
+    const g=Math.round((info.settings?.glowIntensity??.82)*100);
+    $('#opacityRange').value=o;
+    $('#opacityValue').textContent=`${o}%`;
+    $('#glowRange').value=g;
+    $('#glowValue').textContent=`${g}%`;
+
+    renderMatches(data);
+    setSourceStatus(data.providerError);
+    $('#status').textContent=data.providerError
+      ? `VLR respondió con un aviso: ${data.providerError}`
+      : 'VLR conectado. Los cambios se reflejan inmediatamente en OBS.';
+  }catch(e){
+    $('#status').textContent=`Error: ${e.message}`;
+    setSourceStatus(e.message);
+  }
+}
+
+function renderMatches(d){
+  const box=$('#matches');
+  box.innerHTML='';
+
+  if(!d.matches.length){
+    const u=d.nearestUpcoming;
+    if(u?.teams?.length>=2){
+      box.innerHTML=`<div class="match">
+        <span>
+          <span class="teams">NEXT · ${esc(u.teams[0].acronym||u.teams[0].name)} vs ${esc(u.teams[1].acronym||u.teams[1].name)}</span>
+          <span class="meta">${esc(u.event)}<br>${esc(u.stage)}</span>
+        </span>
+        <span class="score">${esc(u.etaText||'SOON')}</span>
+      </div>`;
+    }else{
+      box.innerHTML='<span class="meta">No hay matches live ni próximas.</span>';
+    }
+    return;
+  }
+
+  for(const m of d.matches){
+    const t1=m.teams?.[0]?.acronym||m.teams?.[0]?.name||'TBD';
+    const t2=m.teams?.[1]?.acronym||m.teams?.[1]?.name||'TBD';
+    const b=document.createElement('button');
+    b.className='match'+(String(d.selectedId)===String(m.id)?' selected':'');
+    b.innerHTML=`<span>
+      <span class="teams">${esc(t1)} vs ${esc(t2)}</span>
+      <span class="meta">${esc(m.event)}<br>${esc(m.stage||'')} · ${esc(m.mapName||'')}</span>
+    </span>
+    <span class="score">${m.roundScore?.[0]??0}–${m.roundScore?.[1]??0}
+      <span class="meta">${m.seriesScore?.[0]??0}–${m.seriesScore?.[1]??0} maps</span>
+    </span>`;
+    b.onclick=async()=>{
+      await api('select',{method:'POST',body:JSON.stringify({id:m.id})});
+      load();
+    };
+    box.appendChild(b);
+  }
+}
+
+$('#auto').onclick=async()=>{
+  await api('auto',{method:'POST',body:'{}'});
+  toast('Modo automático activado');
+  load();
+};
+
+$('#refresh').onclick=async()=>{
+  $('#refresh').disabled=true;
+  try{
+    await fetch('/api/refresh',{method:'POST'});
+    await load();
+    toast('Datos actualizados');
+  }finally{
+    $('#refresh').disabled=false;
+  }
+};
+
+$('#opacityRange').oninput=()=>{
+  const v=Number($('#opacityRange').value);
+  $('#opacityValue').textContent=`${v}%`;
+  clearTimeout(ot);
+  ot=setTimeout(()=>api('settings',{method:'POST',body:JSON.stringify({backgroundOpacity:v/100})}),100);
+};
+
+$('#glowRange').oninput=()=>{
+  const v=Number($('#glowRange').value);
+  $('#glowValue').textContent=`${v}%`;
+  clearTimeout(gt);
+  gt=setTimeout(()=>api('settings',{method:'POST',body:JSON.stringify({glowIntensity:v/100})}),100);
+};
+
+const overlayUrl=`${location.origin}/overlay/${roomId}`;
+$('#overlayUrl').textContent=overlayUrl;
+$('#adminUrl').textContent=location.href;
+$('#preview').src=overlayUrl;
+
+$('#copyOverlay').onclick=async()=>{
+  await navigator.clipboard.writeText(overlayUrl);
+  toast('URL de OBS copiada ✓');
+};
+
+$('#copyAdmin').onclick=async()=>{
+  await navigator.clipboard.writeText(location.href);
+  toast('Panel privado copiado ✓');
+};
+
+$('#copyObsSetup').onclick=async()=>{
+  const txt=`VALORANT Live Overlay
+URL: ${overlayUrl}
+Ancho: ${currentObs.width}
+Alto: ${currentObs.height}
+FPS: ${currentObs.fps}`;
+  await navigator.clipboard.writeText(txt);
+  toast('Configuración de OBS copiada ✓');
+};
+
+$('#rename').onclick=async()=>{
+  const name=$('#roomName').value.trim();
+  if(!name)return;
+  $('#rename').disabled=true;
+  try{
+    await api('rename',{method:'POST',body:JSON.stringify({name})});
+    toast('Overlay renombrado ✓');
+    await load();
+  }finally{
+    $('#rename').disabled=false;
+  }
+};
+
+$('#regenKey').onclick=async()=>{
+  if(!confirm('¿Regenerar la clave privada? El enlace actual del Admin dejará de funcionar.'))return;
+  $('#regenKey').disabled=true;
+  try{
+    const d=await api('regenerate-key',{method:'POST',body:'{}'});
+    toast('Clave regenerada');
+    location.href=d.adminUrl;
+  }catch(e){
+    $('#regenKey').disabled=false;
+    alert(e.message);
+  }
+};
+
+$('#deleteRoom').onclick=async()=>{
+  const confirmText=prompt('Para eliminar este overlay escribe ELIMINAR');
+  if(confirmText!=='ELIMINAR')return;
+  $('#deleteRoom').disabled=true;
+  try{
+    await api('delete',{method:'POST',body:'{}'});
+    location.href='/';
+  }catch(e){
+    $('#deleteRoom').disabled=false;
+    alert(e.message);
+  }
+};
+
+const ev=new EventSource(`/events/${roomId}`);
+ev.addEventListener('state',e=>{
+  try{
+    const s=JSON.parse(e.data);
+    $('#selectedLabel').textContent=s.team1?`${s.team1.code} vs ${s.team2.code}`:'—';
+  }catch{}
+});
+ev.addEventListener('deleted',()=>location.href='/');
+
+load();
+</script>
+</body>
+</html>

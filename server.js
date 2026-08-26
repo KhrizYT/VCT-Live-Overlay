@@ -18,6 +18,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const ROOMS_FILE = path.join(DATA_DIR, "rooms.json");
 const DEFAULT_ROOM_TTL_DAYS = Math.max(1, Number(process.env.ROOM_TTL_DAYS || 30));
 const MAX_ROOMS = Math.max(10, Number(process.env.MAX_ROOMS || 1000));
+const OBS_RECOMMENDED = Object.freeze({ width:500, height:160, fps:30 });
 const USE_DEMO = process.env.DEMO_MODE === "1" && typeof getDemoMatches === "function";
 const vlrApiBase = String(process.env.VLR_LIVE_BRIDGE || DEFAULT_BRIDGE).replace(/\/+$/, "");
 
@@ -175,12 +176,25 @@ async function refreshMatches(){
   }catch(err){providerError=String(err?.message||err);console.error("[hosted]",providerError);broadcastAll()}
 }
 
+function requestOrigin(req){
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+  const proto = forwardedProto || (req.socket?.encrypted ? "https" : "http");
+  return `${proto}://${req.headers.host}`;
+}
+
 function publicRoom(room,origin){
-  return {id:room.id,name:room.name,adminUrl:`${origin}/admin/${room.id}?key=${room.adminKey}`,overlayUrl:`${origin}/overlay/${room.id}`,createdAt:room.createdAt};
+  return {
+    id:room.id,
+    name:room.name,
+    adminUrl:`${origin}/admin/${room.id}?key=${room.adminKey}`,
+    overlayUrl:`${origin}/overlay/${room.id}`,
+    createdAt:room.createdAt,
+    obs:OBS_RECOMMENDED
+  };
 }
 
 async function proxyImage(res,imageUrl){
-  try{const upstream=await fetch(imageUrl,{headers:{"User-Agent":"ValorantLiveOverlay/4.0-hosted"}});if(!upstream.ok)return text(res,upstream.status,"Unable to load image");const contentType=upstream.headers.get("content-type")||"image/png";const buffer=Buffer.from(await upstream.arrayBuffer());res.writeHead(200,{"Content-Type":contentType,"Content-Length":buffer.length,"Cache-Control":"public, max-age=900","Access-Control-Allow-Origin":"*"});res.end(buffer)}catch{text(res,500,"Image proxy error")}
+  try{const upstream=await fetch(imageUrl,{headers:{"User-Agent":"ValorantLiveOverlay/4.1-hosted"}});if(!upstream.ok)return text(res,upstream.status,"Unable to load image");const contentType=upstream.headers.get("content-type")||"image/png";const buffer=Buffer.from(await upstream.arrayBuffer());res.writeHead(200,{"Content-Type":contentType,"Content-Length":buffer.length,"Cache-Control":"public, max-age=900","Access-Control-Allow-Origin":"*"});res.end(buffer)}catch{text(res,500,"Image proxy error")}
 }
 
 function routeRoomApi(req,res,url,parts){
@@ -188,7 +202,42 @@ function routeRoomApi(req,res,url,parts){
   const action=parts[3]||"";
   if(req.method==="GET"&&action==="state") return json(res,200,composeRoomState(room));
   if(req.method==="GET"&&action==="matches") return json(res,200,{provider:USE_DEMO?"demo":"vlr",providerError,liveCount:matches.length,selectedId:room.selectedId,autoSelect:room.autoSelect,nearestUpcoming,matches:matches.map(m=>({...m,priority:priorityScore(m)}))});
-  if(req.method==="GET"&&action==="info") return json(res,200,{id:room.id,name:room.name,settings:room.settings,selectedId:room.selectedId,autoSelect:room.autoSelect});
+  if(req.method==="GET"&&action==="info") return json(res,200,{
+    id:room.id,
+    name:room.name,
+    settings:room.settings,
+    selectedId:room.selectedId,
+    autoSelect:room.autoSelect,
+    obs:OBS_RECOMMENDED
+  });
+  if(req.method==="POST"&&action==="regenerate-key"){
+    if(!requireWrite(res,room,req,url))return;
+    room.adminKey=adminKey();
+    touchRoom(room);
+    saveRooms();
+    const origin=requestOrigin(req);
+    return json(res,200,{
+      ok:true,
+      adminKey:room.adminKey,
+      adminUrl:`${origin}/admin/${room.id}?key=${room.adminKey}`
+    });
+  }
+
+  if(req.method==="POST"&&action==="delete"){
+    if(!requireWrite(res,room,req,url))return;
+    const listeners=clientsFor(room.id);
+    for(const client of listeners){
+      try{
+        client.write(`event: deleted\ndata: ${JSON.stringify({roomId:room.id})}\n\n`);
+        client.end();
+      }catch{}
+    }
+    roomClients.delete(room.id);
+    rooms.delete(room.id);
+    saveRooms();
+    return json(res,200,{ok:true,deleted:room.id});
+  }
+
   if(req.method==="POST"&&["settings","select","auto","manual","manual-reset","rename"].includes(action)){
     if(!requireWrite(res,room,req,url))return;
     return readJsonBody(req).then(body=>{
@@ -213,11 +262,17 @@ function routeRoomApi(req,res,url,parts){
 const server=http.createServer((req,res)=>{
   const url=new URL(req.url,`http://${req.headers.host||"localhost"}`); const parts=url.pathname.split("/").filter(Boolean);
   if(req.method==="OPTIONS"){res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type,X-Admin-Key","Access-Control-Allow-Methods":"GET,POST,OPTIONS"});return res.end()}
-  if(url.pathname==="/health")return json(res,200,{ok:true,version:"4.0.1",rooms:rooms.size,live:matches.length,providerError});
-  if(req.method==="GET"&&url.pathname==="/api/config")return json(res,200,{provider:USE_DEMO?"demo":"vlr",providerError,pollMs:POLL_MS,activeBridge});
+  if(url.pathname==="/health")return json(res,200,{ok:true,version:"4.1.0",rooms:rooms.size,live:matches.length,providerError});
+  if(req.method==="GET"&&url.pathname==="/api/config")return json(res,200,{
+    provider:USE_DEMO?"demo":"vlr",
+    providerError,
+    pollMs:POLL_MS,
+    activeBridge,
+    obs:OBS_RECOMMENDED
+  });
   if(req.method==="POST"&&url.pathname==="/api/rooms"){
     if(rooms.size>=MAX_ROOMS) return json(res,429,{error:"Room limit reached"});
-    return readJsonBody(req).then(body=>{let id=roomId();while(rooms.has(id))id=roomId();const room=normalizeRoom({id,adminKey:adminKey(),name:body.name||"My Overlay"});rooms.set(id,room);saveRooms();const origin=`${url.protocol}//${req.headers.host}`;json(res,201,{ok:true,room:publicRoom(room,origin)})}).catch(err=>json(res,400,{error:err.message}));
+    return readJsonBody(req).then(body=>{let id=roomId();while(rooms.has(id))id=roomId();const room=normalizeRoom({id,adminKey:adminKey(),name:body.name||"My Overlay"});rooms.set(id,room);saveRooms();const origin=requestOrigin(req);json(res,201,{ok:true,room:publicRoom(room,origin)})}).catch(err=>json(res,400,{error:err.message}));
   }
   if(parts[0]==="api"&&parts[1]==="rooms"&&parts[2])return routeRoomApi(req,res,url,parts);
   if(req.method==="POST"&&url.pathname==="/api/refresh")return refreshMatches().finally(()=>json(res,200,{ok:true,providerError}));
@@ -239,7 +294,7 @@ setInterval(refreshMatches,POLL_MS).unref();
 setInterval(pruneRooms,6*60*60*1000).unref();
 
 server.listen(PORT,"0.0.0.0",()=>{
-  console.log("VALORANT Live Overlay v4.0.1 · HOSTED HOTFIX");
+  console.log("VALORANT Live Overlay v4.1 · HOSTED");
   console.log(`Web: http://localhost:${PORT}/`);
   console.log(`Rooms: ${rooms.size}`);
   console.log(`Polling: ${POLL_MS/1000}s`);

@@ -9,8 +9,8 @@ h1{font-size:37px;letter-spacing:-.05em;margin:0 0 8px}.accent{color:var(--accen
 label{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}input{width:100%;border:1px solid var(--line);background:#0c1017;color:#fff;border-radius:11px;padding:12px;font:inherit}button{width:100%;margin-top:10px;border:0;border-radius:11px;background:var(--accent);color:#fff;font:800 15px inherit;padding:13px;cursor:pointer}.status{min-height:20px;color:#ff9da5;font-size:12px;margin-top:8px}@media(max-width:650px){.features{grid-template-columns:1fr}h1{font-size:31px}}
 </style></head><body><main><div class="hero">
 <h1>VALORANT Live <span class="accent">Overlay</span></h1>
-<p>Crea tu overlay en la nube. No necesitas instalar Node, abrir CMD ni ejecutar nada en la PC donde usas OBS.</p>
-<div class="features"><div class="feature"><b>Automático</b>Rondas, mapas y próxima match.</div><div class="feature"><b>Compartible</b>Cada overlay tiene su propia URL.</div><div class="feature"><b>OBS</b>Solo pega el Browser Source.</div></div>
+<p>Crea tu overlay en la nube. No necesitas instalar Node, abrir CMD ni ejecutar nada. En OBS solo pegas una URL.</p>
+<div class="features"><div class="feature"><b>Automático</b>Rondas, mapas y próxima match.</div><div class="feature"><b>Compartible</b>Cada overlay tiene su propia URL.</div><div class="feature"><b>OBS</b>Solo pega la URL · 500×160 recomendado.</div></div>
 <label for="name">Nombre del overlay</label><input id="name" maxlength="60" placeholder="Ej. Co-stream Khriz"><button id="create">Crear overlay</button><div class="status" id="status"></div>
 </div></main><script>
 const btn=document.querySelector('#create'),status=document.querySelector('#status'),name=document.querySelector('#name');
