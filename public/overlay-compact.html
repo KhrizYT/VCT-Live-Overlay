@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VALORANT Live Overlay v4.1.2</title>
+<title>VALORANT Live Overlay v4.2</title>
 <style>
   *{box-sizing:border-box}
   html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent!important}
@@ -513,7 +513,7 @@
             <div class="map"><div class="map-label" id="mapLabel">MAP 1</div><div class="map-name" id="mapName">HAVEN</div></div>
           </div>
           <div class="upcoming-center" id="upcomingCenter" hidden>
-            <div class="upcoming-kicker">STARTS IN</div>
+            <div class="upcoming-kicker" id="upcomingKicker">STARTS IN</div>
             <div class="upcoming-time" id="upcomingTime">—</div>
           </div>
         </section>
@@ -822,13 +822,16 @@ async function render(s) {
   applyEventAccent(s);
 
   const isUpcoming = s.status === "upcoming";
-  el("main").classList.toggle("upcoming-mode", isUpcoming);
-  el("statusBadge").classList.toggle("upcoming", isUpcoming);
-  el("statusBadgeText").textContent = isUpcoming ? "NEXT" : "LIVE";
-  el("liveCenter").hidden = isUpcoming;
-  el("upcomingCenter").hidden = !isUpcoming;
+  const isCompleted = s.status === "completed";
+  const usesStatusCenter = isUpcoming || isCompleted;
 
-  if (isUpcoming) {
+  el("main").classList.toggle("upcoming-mode", isUpcoming);
+  el("statusBadge").classList.toggle("upcoming", usesStatusCenter);
+  el("statusBadgeText").textContent = isUpcoming ? "NEXT" : (isCompleted ? "FINAL" : "LIVE");
+  el("liveCenter").hidden = usesStatusCenter;
+  el("upcomingCenter").hidden = !usesStatusCenter;
+
+  if (usesStatusCenter) {
     el("team1").style.setProperty("--team-color", s.team1.color || "#ff4655");
     el("team2").style.setProperty("--team-color", s.team2.color || "#5cc8ff");
 
@@ -838,11 +841,19 @@ async function render(s) {
     el("code2").textContent = s.team2.code;
 
     el("event").textContent = simplifyEvent(s.event || "Valorant");
-    el("stageName").textContent = simplifyStage(s.stage || "Upcoming");
+    el("stageName").textContent = simplifyStage(s.stage || (isCompleted ? "Final" : "Upcoming"));
     el("bestOf").textContent = s.bestOf ? `BO${s.bestOf}` : "";
     el("boSep").style.display = s.bestOf ? "" : "none";
 
-    startCountdown(s);
+    if (isUpcoming) {
+      el("upcomingKicker").textContent = "STARTS IN";
+      startCountdown(s);
+    } else {
+      stopCountdown();
+      el("upcomingKicker").textContent = "SERIES";
+      el("upcomingTime").textContent = "FINAL";
+    }
+
     hideAnnouncement();
     previous = JSON.parse(JSON.stringify(s));
     return;

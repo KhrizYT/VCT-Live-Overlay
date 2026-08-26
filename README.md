@@ -185,3 +185,104 @@ La URL:
 ```
 
 es privada. Si se filtra, usa **Regenerar clave privada**.
+
+
+## v4.1.1 · Preview transparency fix
+
+The white 500×160 rectangle visible in the Admin was the iframe's own browser canvas,
+not part of the OBS overlay.
+
+Admin preview now opens:
+
+```text
+/overlay/ROOM?preview=1
+```
+
+which draws a checkerboard inside the iframe to represent transparent pixels.
+
+The actual OBS URL remains:
+
+```text
+/overlay/ROOM
+```
+
+with a transparent background.
+
+
+## v4.1.2 · UI polish
+
+No data-source or Railway logic changed.
+
+Admin improvements:
+- Slightly larger, easier-to-read UI.
+- Match column no longer stretches to the height of the settings card when only one match exists.
+- NEXT cards show `EMPIEZA EN` above the ETA.
+- One prominent `COPIAR URL PARA OBS` action.
+- OBS recommendation stays visible as `500 × 160 · 30 FPS`.
+- Long URLs are visually shortened while copy actions still use the full URL.
+- Rare room-management actions are collapsed by default.
+- Preview label now reads `Así se verá en OBS · fondo transparente`.
+
+Overlay improvement:
+- NEXT countdown is ~15% larger and more legible.
+
+
+# v4.2 · Pinned Match
+
+v4.1.2 remains the frozen stable release. v4.2 adds a new per-room source mode.
+
+## Automatic
+
+Same behavior as v4.1.2:
+
+- Show a selected/live match.
+- If no match is live, show the nearest upcoming match.
+
+## Match específica
+
+Paste either:
+
+```text
+https://www.vlr.gg/731774/mibr-gc-vs-team-liquid-brazil-game-changers-2026-brazil-finals-ubf
+```
+
+or:
+
+```text
+731774
+```
+
+The room stores the VLR Match ID and follows only that match.
+
+Lifecycle:
+
+```text
+UPCOMING  ->  NEXT + countdown
+LIVE      ->  round/map scoreboard + existing animations
+COMPLETED ->  FINAL
+```
+
+A pinned room never switches to another simultaneous live match.
+
+### API
+
+```text
+POST /api/rooms/:roomId/pin
+{ "input": "https://www.vlr.gg/731774/..." }
+
+POST /api/rooms/:roomId/unpin
+{}
+```
+
+Both require the room's Admin key.
+
+### Data resolution
+
+For pinned upcoming matches the provider tries:
+
+1. VLR bridge upcoming feed (best ETA).
+2. Self-hosted VLR `/api/matches/upcoming` fallback.
+3. Exact self-hosted `/api/matches/:id` details.
+
+Once the pinned match appears in the normal VLR live-score feed, that live object becomes
+authoritative automatically, so round scores/maps/animations use the same proven path as v4.1.2.

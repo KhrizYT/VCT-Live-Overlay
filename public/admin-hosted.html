@@ -31,6 +31,21 @@ h1{margin:0;font-size:30px;letter-spacing:-.045em}
 .card{background:rgba(19,23,32,.92);border:1px solid var(--line);border-radius:16px;padding:17px}
 h2{font-size:13px;text-transform:uppercase;letter-spacing:.13em;color:#a9b2c2;margin:0 0 13px}
 .matches{display:grid;gap:9px}
+.source-mode{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}
+.source-mode button{font-size:13px;font-weight:800}
+.source-mode button.active{border-color:var(--accent);background:rgba(255,70,85,.12);box-shadow:inset 0 0 0 1px rgba(255,70,85,.18)}
+.pin-panel{padding:12px;border:1px solid var(--line);border-radius:12px;background:#10141c;margin-bottom:14px}
+.pin-panel[hidden]{display:none}
+.pin-row{display:grid;grid-template-columns:1fr auto;gap:7px;margin-top:8px}
+.pin-row input{min-width:0}
+.pinned-card{padding:13px;border:1px solid rgba(255,70,85,.42);border-radius:12px;background:linear-gradient(135deg,rgba(255,70,85,.08),#10141c 50%);margin-bottom:14px}
+.pinned-card[hidden]{display:none}
+.pin-badge{display:inline-block;font-size:9px;font-weight:900;letter-spacing:.13em;color:#ff9ca5;border:1px solid rgba(255,70,85,.38);padding:4px 6px;border-radius:999px;margin-bottom:7px}
+.pin-title{font-size:19px;font-weight:950;letter-spacing:-.025em}
+.pin-eta{font-size:20px;font-weight:950;text-align:right}
+.pin-actions{display:flex;gap:7px;margin-top:10px}
+.pin-actions button{font-size:12px;padding:8px 10px}
+.section-sep{height:1px;background:var(--line);margin:14px 0}
 .match{
   width:100%;text-align:left;display:grid;grid-template-columns:1fr auto;gap:14px;
   padding:14px;background:#10141c;border:1px solid var(--line);color:#fff;border-radius:11px;cursor:pointer
@@ -113,7 +128,7 @@ code{color:#dfe7f6;word-break:break-all}
 </head>
 <body>
 <main>
-  <h1>VALORANT Live Overlay <span style="color:#ff4655">v4.1.2 · HOSTED</span></h1>
+  <h1>VALORANT Live Overlay <span style="color:#ff4655">v4.2 · PINNED MATCH</span></h1>
   <p class="sub">Controla tu overlay desde aquí. OBS solo necesita la URL del Browser Source.</p>
 
   <div class="status" id="status">Conectando…</div>
@@ -129,7 +144,40 @@ code{color:#dfe7f6;word-break:break-all}
 
   <div class="grid">
     <section class="card">
-      <h2>Matches live</h2>
+      <h2>Qué quieres mostrar</h2>
+
+      <div class="source-mode">
+        <button id="modeAuto" class="active">Automático</button>
+        <button id="modePinned">Match específica</button>
+      </div>
+
+      <div id="pinPanel" class="pin-panel" hidden>
+        <b>Fijar una match de VLR</b>
+        <span class="meta">Pega el enlace de la partida o solamente su Match ID.</span>
+        <div class="pin-row">
+          <input id="pinInput" type="text" placeholder="https://www.vlr.gg/731774/...">
+          <button id="pinMatch" class="primary">Fijar match</button>
+        </div>
+        <span class="meta">El overlay mostrará el countdown y, cuando empiece, seguirá esa misma partida en LIVE.</span>
+      </div>
+
+      <div id="pinnedCard" class="pinned-card" hidden>
+        <span class="pin-badge">MATCH FIJADA</span>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center">
+          <div>
+            <div id="pinnedTeams" class="pin-title">—</div>
+            <span id="pinnedMeta" class="meta">—</span>
+          </div>
+          <div id="pinnedEta" class="pin-eta">—</div>
+        </div>
+        <div class="pin-actions">
+          <button id="openPinned">Abrir en VLR</button>
+          <button id="unpinMatch">Volver a automático</button>
+        </div>
+      </div>
+
+      <div class="section-sep"></div>
+      <h2 id="matchesHeading">Matches live</h2>
       <div id="matches" class="matches"></div>
     </section>
 
@@ -217,6 +265,8 @@ const parts=location.pathname.split('/').filter(Boolean);
 const roomId=parts[1];
 let key=new URLSearchParams(location.search).get('key')||'';
 let ot,gt,currentObs={width:500,height:160,fps:30};
+let currentSourceMode='automatic';
+let currentPinnedMatch=null;
 
 const api=async(path,opts={})=>{
   const r=await fetch(`/api/rooms/${roomId}/${path}`,{
@@ -264,6 +314,9 @@ async function load(){
     $('#roomName').value=info.name||'';
 
     currentObs=info.obs||currentObs;
+    currentSourceMode=info.sourceMode||'automatic';
+    currentPinnedMatch=data.pinnedMatch||null;
+    renderSourceMode(data,info);
     $('#obsWidth').textContent=currentObs.width;
     $('#obsHeight').textContent=currentObs.height;
     $('#obsFps').textContent=currentObs.fps;
@@ -284,6 +337,35 @@ async function load(){
     $('#status').textContent=`Error: ${e.message}`;
     setSourceStatus(e.message);
   }
+}
+
+
+function renderSourceMode(data,info){
+  const pinned=currentSourceMode==='pinned';
+  $('#modeAuto').classList.toggle('active',!pinned);
+  $('#modePinned').classList.toggle('active',pinned);
+  $('#pinPanel').hidden=pinned;
+  $('#pinnedCard').hidden=!pinned;
+  $('#matchesHeading').textContent=pinned?'Otras matches live':'Matches live';
+
+  if(!pinned)return;
+
+  const m=data.pinnedMatch;
+  if(!m){
+    $('#pinnedTeams').textContent=`VLR #${info.pinnedMatchId||'—'}`;
+    $('#pinnedMeta').textContent='Esperando datos de VLR…';
+    $('#pinnedEta').textContent='…';
+    return;
+  }
+
+  const t1=m.teams?.[0]?.acronym||m.teams?.[0]?.name||'TBD';
+  const t2=m.teams?.[1]?.acronym||m.teams?.[1]?.name||'TBD';
+  $('#pinnedTeams').textContent=`${t1} vs ${t2}`;
+  $('#pinnedMeta').textContent=[m.event,m.stage].filter(Boolean).join(' · ');
+
+  if(m.status==='running') $('#pinnedEta').textContent='LIVE';
+  else if(m.status==='completed') $('#pinnedEta').textContent='FINAL';
+  else $('#pinnedEta').textContent=m.etaText||'SOON';
 }
 
 function renderMatches(d){
@@ -326,8 +408,56 @@ function renderMatches(d){
   }
 }
 
+
+$('#modeAuto').onclick=async()=>{
+  $('#pinPanel').hidden=true;
+  if(currentSourceMode==='automatic')return;
+  await api('unpin',{method:'POST',body:'{}'});
+  currentSourceMode='automatic';
+  toast('Modo automático activado');
+  await load();
+};
+
+$('#modePinned').onclick=()=>{
+  if(currentSourceMode==='pinned')return;
+  $('#pinPanel').hidden=false;
+  $('#pinInput').focus();
+};
+
+$('#pinMatch').onclick=async()=>{
+  const input=$('#pinInput').value.trim();
+  if(!input)return;
+  $('#pinMatch').disabled=true;
+  try{
+    await api('pin',{method:'POST',body:JSON.stringify({input})});
+    $('#pinInput').value='';
+    toast('Match fijada ✓');
+    await load();
+  }catch(e){
+    alert(e.message);
+  }finally{
+    $('#pinMatch').disabled=false;
+  }
+};
+
+$('#pinInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter')$('#pinMatch').click();
+});
+
+$('#unpinMatch').onclick=async()=>{
+  await api('unpin',{method:'POST',body:'{}'});
+  toast('Volviste al modo automático');
+  await load();
+};
+
+$('#openPinned').onclick=()=>{
+  if(!currentPinnedMatch?.matchPage)return;
+  window.open(currentPinnedMatch.matchPage,'_blank','noopener');
+};
+
 $('#auto').onclick=async()=>{
   await api('auto',{method:'POST',body:'{}'});
+  currentSourceMode='automatic';
   toast('Modo automático activado');
   load();
 };

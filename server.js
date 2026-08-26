@@ -9,7 +9,7 @@ try {
 } catch (err) {
   console.warn("[startup] providers/demo.js not found; DEMO_MODE disabled.");
 }
-const { getRunningMatches: getVlrMatches, getNearestUpcoming, DEFAULT_BRIDGE } = require("./providers/vlr_local");
+const { getRunningMatches: getVlrMatches, getNearestUpcoming, getPinnedMatch, parseVlrMatchId, DEFAULT_BRIDGE } = require("./providers/vlr_local");
 
 const PORT = Number(process.env.PORT || 8787);
 const POLL_MS = Math.max(8000, Number(process.env.POLL_MS || 10000));
@@ -26,6 +26,7 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 
 let matches = [];
 let nearestUpcoming = null;
+let pinnedMatches = new Map();
 let providerError = "";
 let activeBridge = "";
 let rooms = loadRooms();
@@ -55,6 +56,11 @@ function normalizeRoom(room){
     name:String(room.name || "My Overlay").slice(0,60),
     selectedId:room.selectedId ? String(room.selectedId) : null,
     autoSelect:room.autoSelect !== false,
+    sourceMode:(room.sourceMode === "pinned" && room.pinnedMatchId) ? "pinned" : "automatic",
+    pinnedMatchId:room.pinnedMatchId ? String(room.pinnedMatchId) : null,
+    pinnedMatchPage:room.pinnedMatchId
+      ? `https://www.vlr.gg/${String(room.pinnedMatchId)}`
+      : null,
     settings:{
       backgroundOpacity:Number(room.settings?.backgroundOpacity ?? 0.92),
       glowIntensity:Number(room.settings?.glowIntensity ?? 0.82)
@@ -133,6 +139,12 @@ function requireWrite(res,room,req,url){
 }
 
 function resolveRoomMatch(room){
+  if(room.sourceMode==="pinned" && room.pinnedMatchId){
+    const id=String(room.pinnedMatchId);
+    const live=matches.find(m=>String(m.id)===id);
+    return live || pinnedMatches.get(id) || null;
+  }
+
   if(!matches.length) return nearestUpcoming;
   if(room.selectedId){
     const selected=matches.find(m=>String(m.id)===String(room.selectedId));
@@ -142,11 +154,25 @@ function resolveRoomMatch(room){
 }
 function composeRoomState(room){
   const match=resolveRoomMatch(room);
-  if(!match){return {connected:true,provider:USE_DEMO?"demo":"vlr",providerError,status:"waiting",message:"No live/upcoming match detected",ui:room.settings,roomId:room.id}}
+  if(!match){
+    const pinned=room.sourceMode==="pinned" && room.pinnedMatchId;
+    return {
+      connected:true,
+      provider:USE_DEMO?"demo":"vlr",
+      providerError,
+      status:"waiting",
+      message:pinned?"Pinned match is temporarily unavailable":"No live/upcoming match detected",
+      ui:room.settings,
+      roomId:room.id,
+      sourceMode:room.sourceMode,
+      pinnedMatchId:room.pinnedMatchId||null
+    }
+  }
   const t1=match.teams?.[0]||{name:"TBD"}; const t2=match.teams?.[1]||{name:"TBD"};
   const isUpcoming=match.status==="upcoming"; const manual=room.manual||emptyManual();
   return {
     connected:true,provider:USE_DEMO?"demo":"vlr",providerError,status:match.status||"running",roomId:room.id,
+    sourceMode:room.sourceMode,pinnedMatchId:room.pinnedMatchId||null,
     matchId:String(match.id),matchPage:match.matchPage||"",bestOf:match.bestOf||null,event:match.event||"VALORANT",stage:match.stage||"",
     mapName:manual.mapName??match.mapName??"",eventLogo:match.eventLogo||"",ui:room.settings,
     team1:{id:t1.id,name:t1.name,code:safeCode(t1),logo:t1.logo||"",color:colorFor(t1),series:isUpcoming?0:(manual.map1??Number(match.seriesScore?.[0]??0)),rounds:isUpcoming?null:(manual.round1??match.roundScore?.[0]??null)},
@@ -168,8 +194,36 @@ async function refreshMatches(){
     activeBridge=USE_DEMO?"":(matches.find(m=>m.sourceDebug?.liveBridge)?.sourceDebug?.liveBridge||vlrApiBase);
     matches=rankMatches(matches);
     nearestUpcoming=(!USE_DEMO&&matches.length===0)?await getNearestUpcoming(vlrApiBase):null;
+
+    const nextPinned=new Map();
+    const pinnedIds=[...new Set(
+      [...rooms.values()]
+        .filter(r=>r.sourceMode==="pinned" && r.pinnedMatchId)
+        .map(r=>String(r.pinnedMatchId))
+    )];
+
+    for(const id of pinnedIds){
+      const live=matches.find(m=>String(m.id)===id);
+      if(live){
+        nextPinned.set(id,live);
+        continue;
+      }
+      try{
+        const resolved=await getPinnedMatch(id,vlrApiBase);
+        if(resolved) nextPinned.set(id,resolved);
+      }catch(err){
+        console.warn(`[pinned] ${id}: ${String(err?.message||err)}`);
+        const old=pinnedMatches.get(id);
+        if(old) nextPinned.set(id,old);
+      }
+    }
+    pinnedMatches=nextPinned;
+
     for(const room of rooms.values()){
-      if(room.selectedId && !matches.some(m=>String(m.id)===String(room.selectedId))){ room.selectedId=null; touchRoom(room); }
+      if(room.sourceMode!=="pinned" && room.selectedId && !matches.some(m=>String(m.id)===String(room.selectedId))){
+        room.selectedId=null;
+        touchRoom(room);
+      }
     }
     broadcastAll();
     console.log(`[hosted] live=${matches.length} rooms=${rooms.size} bridge=${activeBridge||"demo"}`);
@@ -201,15 +255,78 @@ function routeRoomApi(req,res,url,parts){
   const room=requireRoom(res,parts[2]); if(!room)return;
   const action=parts[3]||"";
   if(req.method==="GET"&&action==="state") return json(res,200,composeRoomState(room));
-  if(req.method==="GET"&&action==="matches") return json(res,200,{provider:USE_DEMO?"demo":"vlr",providerError,liveCount:matches.length,selectedId:room.selectedId,autoSelect:room.autoSelect,nearestUpcoming,matches:matches.map(m=>({...m,priority:priorityScore(m)}))});
+  if(req.method==="GET"&&action==="matches") return json(res,200,{
+    provider:USE_DEMO?"demo":"vlr",
+    providerError,
+    liveCount:matches.length,
+    selectedId:room.selectedId,
+    autoSelect:room.autoSelect,
+    sourceMode:room.sourceMode,
+    pinnedMatchId:room.pinnedMatchId||null,
+    pinnedMatch:room.pinnedMatchId ? (matches.find(m=>String(m.id)===String(room.pinnedMatchId)) || pinnedMatches.get(String(room.pinnedMatchId)) || null) : null,
+    nearestUpcoming,
+    matches:matches.map(m=>({...m,priority:priorityScore(m)}))
+  });
   if(req.method==="GET"&&action==="info") return json(res,200,{
     id:room.id,
     name:room.name,
     settings:room.settings,
     selectedId:room.selectedId,
     autoSelect:room.autoSelect,
+    sourceMode:room.sourceMode,
+    pinnedMatchId:room.pinnedMatchId||null,
+    pinnedMatchPage:room.pinnedMatchPage||null,
     obs:OBS_RECOMMENDED
   });
+  if(req.method==="POST"&&action==="pin"){
+    if(!requireWrite(res,room,req,url))return;
+    return readJsonBody(req).then(async body=>{
+      const raw=String(body.input||body.url||body.id||"").trim();
+
+      // DEMO_MODE accepts its synthetic IDs so the feature can be smoke-tested.
+      let id="";
+      let resolved=null;
+      if(USE_DEMO){
+        resolved=matches.find(m=>String(m.id)===raw)||null;
+        if(resolved) id=String(resolved.id);
+      }
+
+      if(!id) id=parseVlrMatchId(raw);
+      if(!id) return json(res,400,{error:"Pega una URL válida de VLR.gg o un Match ID numérico."});
+
+      if(!resolved) resolved=matches.find(m=>String(m.id)===id)||null;
+      if(!resolved && !USE_DEMO) resolved=await getPinnedMatch(id,vlrApiBase);
+      if(!resolved) return json(res,404,{error:"No pude encontrar esa match en VLR. Revisa el enlace o el ID."});
+
+      room.sourceMode="pinned";
+      room.pinnedMatchId=id;
+      room.pinnedMatchPage=`https://www.vlr.gg/${id}`;
+      room.selectedId=null;
+      room.autoSelect=false;
+      room.manual=emptyManual();
+      pinnedMatches.set(id,resolved);
+      touchRoom(room);
+      saveRooms();
+      broadcastRoom(room);
+
+      return json(res,200,{ok:true,pinnedMatchId:id,match:resolved,state:composeRoomState(room)});
+    }).catch(err=>json(res,400,{error:err.message}));
+  }
+
+  if(req.method==="POST"&&action==="unpin"){
+    if(!requireWrite(res,room,req,url))return;
+    room.sourceMode="automatic";
+    room.pinnedMatchId=null;
+    room.pinnedMatchPage=null;
+    room.selectedId=null;
+    room.autoSelect=true;
+    room.manual=emptyManual();
+    touchRoom(room);
+    saveRooms();
+    broadcastRoom(room);
+    return json(res,200,{ok:true,state:composeRoomState(room)});
+  }
+
   if(req.method==="POST"&&action==="regenerate-key"){
     if(!requireWrite(res,room,req,url))return;
     room.adminKey=adminKey();
@@ -245,9 +362,21 @@ function routeRoomApi(req,res,url,parts){
         if(body.backgroundOpacity!==undefined){const v=Number(body.backgroundOpacity);if(Number.isFinite(v))room.settings.backgroundOpacity=Math.max(.35,Math.min(1,v))}
         if(body.glowIntensity!==undefined){const v=Number(body.glowIntensity);if(Number.isFinite(v))room.settings.glowIntensity=Math.max(0,Math.min(1.6,v))}
       }else if(action==="select"){
-        const m=matches.find(x=>String(x.id)===String(body.id)); if(!m)return json(res,404,{error:"Match not found"}); room.selectedId=String(m.id);room.autoSelect=false;room.manual=emptyManual();
+        const m=matches.find(x=>String(x.id)===String(body.id));
+        if(!m)return json(res,404,{error:"Match not found"});
+        room.sourceMode="automatic";
+        room.pinnedMatchId=null;
+        room.pinnedMatchPage=null;
+        room.selectedId=String(m.id);
+        room.autoSelect=false;
+        room.manual=emptyManual();
       }else if(action==="auto"){
-        room.autoSelect=true;room.selectedId=null;room.manual=emptyManual();
+        room.sourceMode="automatic";
+        room.pinnedMatchId=null;
+        room.pinnedMatchPage=null;
+        room.autoSelect=true;
+        room.selectedId=null;
+        room.manual=emptyManual();
       }else if(action==="manual"){
         for(const key of ["round1","round2","map1","map2"]){if(body[key]===null)room.manual[key]=null;else if(body[key]!==undefined){const v=Number(body[key]);if(Number.isFinite(v))room.manual[key]=Math.max(0,Math.min(99,Math.floor(v)))}}
         if(body.mapName!==undefined)room.manual.mapName=String(body.mapName||"").slice(0,50);
@@ -262,7 +391,7 @@ function routeRoomApi(req,res,url,parts){
 const server=http.createServer((req,res)=>{
   const url=new URL(req.url,`http://${req.headers.host||"localhost"}`); const parts=url.pathname.split("/").filter(Boolean);
   if(req.method==="OPTIONS"){res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type,X-Admin-Key","Access-Control-Allow-Methods":"GET,POST,OPTIONS"});return res.end()}
-  if(url.pathname==="/health")return json(res,200,{ok:true,version:"4.1.0",rooms:rooms.size,live:matches.length,providerError});
+  if(url.pathname==="/health")return json(res,200,{ok:true,version:"4.2.0",rooms:rooms.size,live:matches.length,providerError});
   if(req.method==="GET"&&url.pathname==="/api/config")return json(res,200,{
     provider:USE_DEMO?"demo":"vlr",
     providerError,
@@ -294,7 +423,7 @@ setInterval(refreshMatches,POLL_MS).unref();
 setInterval(pruneRooms,6*60*60*1000).unref();
 
 server.listen(PORT,"0.0.0.0",()=>{
-  console.log("VALORANT Live Overlay v4.1 · HOSTED");
+  console.log("VALORANT Live Overlay v4.2 · PINNED MATCH");
   console.log(`Web: http://localhost:${PORT}/`);
   console.log(`Rooms: ${rooms.size}`);
   console.log(`Polling: ${POLL_MS/1000}s`);

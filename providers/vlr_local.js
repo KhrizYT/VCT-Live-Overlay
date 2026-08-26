@@ -10,6 +10,8 @@ const profileCache = new Map();
 const detailCache = new Map();
 const eventLogoCache = new Map();
 let eventsCache = { at: 0, items: [] };
+let upcomingBridgeCache = { at: 0, preferred: "", value: null };
+let localUpcomingCache = { at: 0, items: [] };
 
 function normBase(value) {
   return String(value || "").replace(/\/+$/, "");
@@ -58,6 +60,14 @@ function matchIdFromPage(value) {
   return m ? m[1] : "";
 }
 
+function parseVlrMatchId(value) {
+  const s = String(value || "").trim();
+  if (!s) return "";
+  if (/^\d+$/.test(s)) return s;
+  const m = s.match(/(?:https?:\/\/)?(?:www\.)?vlr\.gg\/(\d+)(?:[/?#-]|$)/i);
+  return m ? m[1] : "";
+}
+
 function extractSegments(payload) {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.segments)) return payload.segments;
@@ -73,7 +83,7 @@ async function getJson(url, timeoutMs = 12000) {
     const res = await fetch(url, {
       headers: {
         "Accept": "application/json",
-        "User-Agent": "ValorantLiveOverlay/4.0-hosted"
+        "User-Agent": "ValorantLiveOverlay/4.2-pinned-match"
       },
       signal: ctrl.signal,
       cache: "no-store"
@@ -266,8 +276,17 @@ function parseEtaSeconds(value) {
 }
 
 async function getUpcomingFromBridge(preferredBridge = DEFAULT_BRIDGE) {
+  const preferred = normBase(preferredBridge);
+  if (
+    upcomingBridgeCache.value &&
+    upcomingBridgeCache.preferred === preferred &&
+    Date.now() - upcomingBridgeCache.at < 8000
+  ) {
+    return upcomingBridgeCache.value;
+  }
+
   const candidates = [...new Set([
-    normBase(preferredBridge),
+    preferred,
     ...FALLBACK_BRIDGES.map(normBase)
   ])];
 
@@ -281,7 +300,11 @@ async function getUpcomingFromBridge(preferredBridge = DEFAULT_BRIDGE) {
       try {
         const payload = await getJson(`${base}${path}`, 12000);
         const items = extractSegments(payload);
-        if (items.length) return { items, base };
+        if (items.length) {
+          const value = { items, base };
+          upcomingBridgeCache = { at: Date.now(), preferred, value };
+          return value;
+        }
       } catch (err) {
         errors.push(`${base}${path}: ${String(err?.message || err)}`);
       }
@@ -289,6 +312,185 @@ async function getUpcomingFromBridge(preferredBridge = DEFAULT_BRIDGE) {
   }
 
   throw new Error(`VLR upcoming unavailable. ${errors.join(" | ")}`);
+}
+
+
+async function getLocalUpcomingMatches() {
+  if (localUpcomingCache.items.length && Date.now() - localUpcomingCache.at < 30000) {
+    return localUpcomingCache.items;
+  }
+
+  try {
+    const p = await getJson(`${LOCAL_API}/matches/upcoming`, 8000);
+    const items = p?.success && Array.isArray(p.data) ? p.data : [];
+    localUpcomingCache = { at: Date.now(), items };
+    return items;
+  } catch {
+    return [];
+  }
+}
+
+function normalizeLocalUpcomingLabels(item) {
+  const event = String(item?.event || "").trim();
+  const stage = String(item?.stage || "").trim();
+  const looksLikeCompetition = text =>
+    /(vct|challengers|game changers|masters|champions|valorant champions tour|ascension|league|series)/i.test(text);
+
+  // The self-hosted scraper may expose stage/event in the opposite order
+  // from the bridge. Normalize it for the compact overlay.
+  if (looksLikeCompetition(stage) && !looksLikeCompetition(event)) {
+    return { event: stage, stage: event };
+  }
+  return { event: event || stage || "VALORANT", stage: stage || "" };
+}
+
+async function buildUpcomingFromBridgeItem(item, bridgeBase) {
+  const matchId = matchIdFromPage(item?.match_page);
+  if (!matchId) return null;
+
+  const details = await getLocalDetail(matchId);
+  const [detail1, detail2] = alignDetailTeams(details, item?.team1 || "", item?.team2 || "");
+
+  const [team1, team2, eventLogo] = await Promise.all([
+    enrichTeam(item?.team1, item?.team1_logo || "", detail1),
+    enrichTeam(item?.team2, item?.team2_logo || "", detail2),
+    getEventLogo(bridgeBase, item?.match_event || details?.event || "")
+  ]);
+
+  const eta = parseEtaSeconds(item?.time_until_match);
+
+  return {
+    id: matchId,
+    status: "upcoming",
+    bestOf: parseBo(details?.format, null),
+    event: String(item?.match_event || details?.event || "VALORANT").trim(),
+    stage: String(item?.match_series || details?.stage || "").trim(),
+    mapName: "",
+    eventLogo: eventLogo || "",
+    matchPage: item?.match_page || `https://www.vlr.gg/${matchId}`,
+    seriesScore: [0, 0],
+    roundScore: [null, null],
+    teams: [team1, team2],
+    etaText: String(item?.time_until_match || "").replace(/\s+from now$/i, "").trim(),
+    etaSeconds: Number.isFinite(eta) ? eta : null,
+    etaCapturedAt: Date.now(),
+    matchTime: String(item?.match_time || "").trim(),
+    sourceDebug: {
+      pinned: true,
+      upcomingBridge: bridgeBase,
+      localDetails: Boolean(details),
+      team1Profile: team1.metadataResolved,
+      team2Profile: team2.metadataResolved
+    }
+  };
+}
+
+async function buildUpcomingFromLocalItem(item, preferredBridge) {
+  const matchId = String(item?.id || "");
+  if (!matchId) return null;
+
+  const details = await getLocalDetail(matchId);
+  const [detail1, detail2] = alignDetailTeams(
+    details,
+    item?.team1?.name || "",
+    item?.team2?.name || ""
+  );
+
+  const [team1, team2] = await Promise.all([
+    enrichTeam(item?.team1?.name, item?.team1?.logo || "", detail1),
+    enrichTeam(item?.team2?.name, item?.team2?.logo || "", detail2)
+  ]);
+
+  const labels = normalizeLocalUpcomingLabels(item);
+  const eventLogo =
+    absUrl(item?.eventLogo || "") ||
+    await getEventLogo(preferredBridge, labels.event);
+
+  const eta = parseEtaSeconds(item?.eta);
+
+  return {
+    id: matchId,
+    status: "upcoming",
+    bestOf: parseBo(details?.format, null),
+    event: labels.event,
+    stage: labels.stage,
+    mapName: "",
+    eventLogo,
+    matchPage: `https://www.vlr.gg/${matchId}`,
+    seriesScore: [0, 0],
+    roundScore: [null, null],
+    teams: [team1, team2],
+    etaText: String(item?.eta || "").replace(/\s+from now$/i, "").trim(),
+    etaSeconds: Number.isFinite(eta) ? eta : null,
+    etaCapturedAt: Date.now(),
+    matchTime: String(item?.matchTime || "").trim(),
+    sourceDebug: {
+      pinned: true,
+      localUpcoming: true,
+      localDetails: Boolean(details),
+      team1Profile: team1.metadataResolved,
+      team2Profile: team2.metadataResolved
+    }
+  };
+}
+
+async function getPinnedMatch(matchId, preferredBridge = DEFAULT_BRIDGE) {
+  const id = parseVlrMatchId(matchId);
+  if (!id) return null;
+
+  // 1) Prefer VLR's upcoming feed because it gives the most useful ETA.
+  try {
+    const upcoming = await getUpcomingFromBridge(preferredBridge);
+    const item = upcoming.items.find(seg => matchIdFromPage(seg?.match_page) === id);
+    if (item) return await buildUpcomingFromBridgeItem(item, upcoming.base);
+  } catch {}
+
+  // 2) The self-hosted VLR API can include matches farther in the future.
+  const localUpcoming = await getLocalUpcomingMatches();
+  const localItem = localUpcoming.find(item => String(item?.id || "") === id);
+  if (localItem) return await buildUpcomingFromLocalItem(localItem, preferredBridge);
+
+  // 3) Exact match detail fallback. Useful for completed matches and for
+  // validating that a pasted VLR link really points to a match.
+  const details = await getLocalDetail(id);
+  if (!details) return null;
+
+  const [team1, team2, eventLogo] = await Promise.all([
+    enrichTeam(details?.team1?.name, details?.team1?.logo || "", details?.team1 || null),
+    enrichTeam(details?.team2?.name, details?.team2?.logo || "", details?.team2 || null),
+    getEventLogo(preferredBridge, details?.event || "")
+  ]);
+
+  const statusRaw = String(details?.status || "").toLowerCase();
+  const completed = statusRaw === "completed";
+  const upcoming = statusRaw === "upcoming";
+
+  return {
+    id,
+    status: completed ? "completed" : (upcoming ? "upcoming" : "upcoming"),
+    bestOf: parseBo(details?.format, null),
+    event: details?.event || "VALORANT",
+    stage: details?.stage || "",
+    mapName: "",
+    eventLogo: eventLogo || "",
+    matchPage: `https://www.vlr.gg/${id}`,
+    seriesScore: [
+      toNum(details?.team1?.score, 0),
+      toNum(details?.team2?.score, 0)
+    ],
+    roundScore: [null, null],
+    teams: [team1, team2],
+    etaText: upcoming ? "TBD" : "",
+    etaSeconds: null,
+    etaCapturedAt: Date.now(),
+    sourceDebug: {
+      pinned: true,
+      exactDetails: true,
+      localDetails: true,
+      team1Profile: team1.metadataResolved,
+      team2Profile: team2.metadataResolved
+    }
+  };
 }
 
 async function getNearestUpcoming(preferredBridge = DEFAULT_BRIDGE) {
@@ -302,8 +504,6 @@ async function getNearestUpcoming(preferredBridge = DEFAULT_BRIDGE) {
   const items = upcoming.items;
   if (!items.length) return null;
 
-  // Choose by VLR's own "time_until_match", not by our local scraper list.
-  // This keeps "next" consistent with the VLR schedule page.
   const ranked = items
     .map((item, index) => ({
       item,
@@ -322,51 +522,9 @@ async function getNearestUpcoming(preferredBridge = DEFAULT_BRIDGE) {
     etaSeconds: parseEtaSeconds(items[0]?.time_until_match)
   };
 
-  const item = selected.item;
-  if (!item) return null;
-
-  const matchId = matchIdFromPage(item.match_page);
-  const details = matchId ? await getLocalDetail(matchId) : null;
-  const [detail1, detail2] = alignDetailTeams(
-    details,
-    item?.team1 || "",
-    item?.team2 || ""
-  );
-
-  const [team1, team2, eventLogo] = await Promise.all([
-    enrichTeam(item?.team1, "", detail1),
-    enrichTeam(item?.team2, "", detail2),
-    getEventLogo(upcoming.base, item?.match_event || details?.event || "")
-  ]);
-
-  const etaSeconds = Number.isFinite(selected.etaSeconds)
-    ? selected.etaSeconds
+  return selected?.item
+    ? await buildUpcomingFromBridgeItem(selected.item, upcoming.base)
     : null;
-
-  return {
-    id: matchId || `upcoming-${Date.now()}`,
-    status: "upcoming",
-    bestOf: parseBo(details?.format, null),
-    event: String(item?.match_event || details?.event || "VALORANT").trim(),
-    stage: String(item?.match_series || details?.stage || "").trim(),
-    mapName: "",
-    eventLogo: eventLogo || "",
-    matchPage: item?.match_page || (matchId ? `https://www.vlr.gg/${matchId}` : ""),
-    seriesScore: [0, 0],
-    roundScore: [null, null],
-    teams: [team1, team2],
-    etaText: String(item?.time_until_match || "").replace(/\s+from now$/i, "").trim(),
-    etaSeconds,
-    etaCapturedAt: Date.now(),
-    sourceDebug: {
-      upcomingBridge: upcoming.base,
-      localApiReady: await localHealth(),
-      localDetails: Boolean(details),
-      team1Profile: team1.metadataResolved,
-      team2Profile: team2.metadataResolved,
-      upcoming: true
-    }
-  };
 }
 
 async function getRunningMatches(preferredBridge = DEFAULT_BRIDGE) {
@@ -431,6 +589,8 @@ async function getRunningMatches(preferredBridge = DEFAULT_BRIDGE) {
 module.exports = {
   getRunningMatches,
   getNearestUpcoming,
+  getPinnedMatch,
+  parseVlrMatchId,
   DEFAULT_BRIDGE,
   LOCAL_API
 };
