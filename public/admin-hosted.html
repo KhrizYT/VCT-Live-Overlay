@@ -86,7 +86,7 @@ code{color:#dfe7f6;word-break:break-all}
   background:repeating-conic-gradient(#1a1f29 0 25%,#11151d 0 50%) 50%/20px 20px;
   border-radius:16px;overflow:auto;padding:22px
 }
-.preview iframe{width:500px;height:160px;max-width:100%;border:1px dashed rgba(255,255,255,.17);display:block;background:transparent}
+.preview iframe{width:500px;height:160px;max-width:100%;border:1px dashed rgba(255,255,255,.17);display:block;background:transparent!important;color-scheme:normal}
 .toast{
   position:fixed;right:18px;bottom:18px;background:#171c25;border:1px solid var(--line);
   border-radius:11px;padding:10px 13px;box-shadow:0 12px 35px rgba(0,0,0,.35);
@@ -98,7 +98,7 @@ code{color:#dfe7f6;word-break:break-all}
 </head>
 <body>
 <main>
-  <h1>VALORANT Live Overlay <span style="color:#ff4655">v4.1 · HOSTED</span></h1>
+  <h1>VALORANT Live Overlay <span style="color:#ff4655">v4.1.1 · HOSTED</span></h1>
   <p class="sub">Controla tu overlay desde aquí. OBS solo necesita la URL del Browser Source.</p>
 
   <div class="status" id="status">Conectando…</div>
@@ -188,7 +188,7 @@ code{color:#dfe7f6;word-break:break-all}
 
   <div class="preview-shell">
     <div class="preview-label">
-      <span>Preview real de Browser Source</span>
+      <span>Preview · el cuadriculado representa transparencia</span>
       <span>500 × 160</span>
     </div>
     <div class="preview"><iframe id="preview" scrolling="no"></iframe></div>
@@ -346,7 +346,7 @@ $('#glowRange').oninput=()=>{
 const overlayUrl=`${location.origin}/overlay/${roomId}`;
 $('#overlayUrl').textContent=overlayUrl;
 $('#adminUrl').textContent=location.href;
-$('#preview').src=overlayUrl;
+$('#preview').src=`${overlayUrl}?preview=1`;
 
 $('#copyOverlay').onclick=async()=>{
   await navigator.clipboard.writeText(overlayUrl);
