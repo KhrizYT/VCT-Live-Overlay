@@ -14,34 +14,35 @@
 body{
   margin:0;min-height:100vh;color:var(--text);
   background:linear-gradient(160deg,#0b0d12,#10141d 60%,#0b0d12);
-  font:15px/1.45 Inter,system-ui,sans-serif
+  font:16px/1.48 Inter,system-ui,sans-serif
 }
-main{max-width:1120px;margin:auto;padding:26px 18px 60px}
-h1{margin:0;font-size:27px;letter-spacing:-.04em}
-.sub{color:var(--muted);margin:6px 0 18px}
-.top{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+main{max-width:1180px;margin:auto;padding:30px 20px 64px}
+h1{margin:0;font-size:30px;letter-spacing:-.045em}
+.sub{color:var(--muted);margin:7px 0 20px;font-size:14px}
+.top{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:18px;align-items:center}
 .pill{
-  border:1px solid var(--line);background:var(--panel);padding:7px 10px;
+  border:1px solid var(--line);background:var(--panel);padding:8px 11px;
   border-radius:999px;color:var(--muted);font-size:13px
 }
 .pill b{color:#fff}
 .pill.good{border-color:rgba(80,216,144,.38);color:#9be7bd}
 .pill.warn{border-color:rgba(241,189,88,.4);color:#f5d28f}
-.grid{display:grid;grid-template-columns:1.15fr .85fr;gap:18px}
-.card{background:rgba(19,23,32,.92);border:1px solid var(--line);border-radius:16px;padding:16px}
-h2{font-size:14px;text-transform:uppercase;letter-spacing:.12em;color:#a9b2c2;margin:0 0 13px}
+.grid{display:grid;grid-template-columns:1.08fr .92fr;gap:18px;align-items:start}
+.card{background:rgba(19,23,32,.92);border:1px solid var(--line);border-radius:16px;padding:17px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.13em;color:#a9b2c2;margin:0 0 13px}
 .matches{display:grid;gap:9px}
 .match{
-  width:100%;text-align:left;display:grid;grid-template-columns:1fr auto;gap:12px;
-  padding:13px;background:#10141c;border:1px solid var(--line);color:#fff;border-radius:10px;cursor:pointer
+  width:100%;text-align:left;display:grid;grid-template-columns:1fr auto;gap:14px;
+  padding:14px;background:#10141c;border:1px solid var(--line);color:#fff;border-radius:11px;cursor:pointer
 }
 .match.selected{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}
-.teams{font-weight:850;font-size:17px}
+.teams{font-weight:900;font-size:18px;letter-spacing:-.02em}
 .meta{display:block;color:var(--muted);font-size:12px;margin-top:3px}
-.score{font-size:20px;font-weight:950;align-self:center;text-align:right}
+.score{font-size:21px;font-weight:950;align-self:center;text-align:right;line-height:1.05}
+.eta-label{display:block;font-size:9px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
 button{
   border:1px solid var(--line);background:var(--panel2);color:#fff;border-radius:10px;
-  padding:10px 13px;font:inherit;cursor:pointer
+  padding:11px 14px;font:inherit;cursor:pointer
 }
 button:hover{border-color:#566075}
 button:disabled{opacity:.55;cursor:not-allowed}
@@ -58,6 +59,7 @@ input[type=text]{
 }
 .urlbox{background:#10141c;border:1px solid var(--line);padding:11px 12px;border-radius:12px;font-size:13px;margin-top:10px}
 code{color:#dfe7f6;word-break:break-all}
+.short-url{font-size:13px;font-weight:700}
 .copy{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
 .copy button{font-size:12px;padding:8px 10px}
 .status{
@@ -65,8 +67,8 @@ code{color:#dfe7f6;word-break:break-all}
   color:#a7efc8;margin-bottom:14px;background:#10141c
 }
 .obs-guide{
-  margin-top:13px;padding:13px;border:1px solid rgba(95,213,232,.25);
-  border-radius:14px;background:linear-gradient(135deg,rgba(95,213,232,.07),#10141c 48%)
+  margin-top:14px;padding:14px;border:1px solid rgba(95,213,232,.28);
+  border-radius:14px;background:linear-gradient(135deg,rgba(95,213,232,.08),#10141c 52%)
 }
 .obs-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
 .obs-title{font-weight:850}
@@ -76,10 +78,23 @@ code{color:#dfe7f6;word-break:break-all}
 }
 .obs-values{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}
 .obs-value{padding:9px 8px;text-align:center;border:1px solid var(--line);border-radius:10px;background:#0d1118}
-.obs-value b{font-size:16px;display:block}.obs-value span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
-.room-tools{margin-top:13px;padding-top:13px;border-top:1px solid var(--line)}
+.obs-value b{font-size:18px;display:block}.obs-value span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.obs-main-copy{
+  width:100%;margin-top:10px;padding:12px 14px!important;
+  background:var(--accent);border-color:var(--accent)!important;font-weight:900;letter-spacing:.02em
+}
+.obs-note{margin-top:7px;text-align:center;color:var(--muted);font-size:11px}
+.room-tools{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.room-tools summary{
+  cursor:pointer;color:#9aa6b7;font-size:12px;user-select:none;
+  list-style:none;display:flex;justify-content:space-between;align-items:center
+}
+.room-tools summary::-webkit-details-marker{display:none}
+.room-tools summary::after{content:"▾";font-size:12px;color:#778295;transition:.16s ease}
+.room-tools[open] summary::after{transform:rotate(180deg)}
+.room-tools-content{padding-top:11px}
 .room-tools .meta{margin-bottom:8px}
-.preview-shell{margin-top:18px}
+.preview-shell{margin-top:20px}
 .preview-label{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px;margin-bottom:7px}
 .preview{
   min-height:206px;display:grid;place-items:center;border:1px solid var(--line);
@@ -98,7 +113,7 @@ code{color:#dfe7f6;word-break:break-all}
 </head>
 <body>
 <main>
-  <h1>VALORANT Live Overlay <span style="color:#ff4655">v4.1.1 · HOSTED</span></h1>
+  <h1>VALORANT Live Overlay <span style="color:#ff4655">v4.1.2 · HOSTED</span></h1>
   <p class="sub">Controla tu overlay desde aquí. OBS solo necesita la URL del Browser Source.</p>
 
   <div class="status" id="status">Conectando…</div>
@@ -150,45 +165,44 @@ code{color:#dfe7f6;word-break:break-all}
           <div class="obs-value"><b id="obsHeight">160</b><span>Alto</span></div>
           <div class="obs-value"><b id="obsFps">30</b><span>FPS</span></div>
         </div>
-        <div class="copy">
-          <button id="copyObsSetup">Copiar configuración</button>
-        </div>
+        <button id="copyOverlay" class="obs-main-copy">COPIAR URL PARA OBS</button>
+        <div class="obs-note">500 × 160 · 30 FPS · fondo transparente</div>
       </div>
 
       <div class="urlbox">
         <b>Browser Source de OBS</b><br>
-        <code id="overlayUrl"></code>
-        <div class="copy">
-          <button id="copyOverlay" class="primary">Copiar URL</button>
-        </div>
+        <code id="overlayUrl" class="short-url"></code>
+        <span class="meta">La URL completa se copia con el botón de arriba.</span>
       </div>
 
       <div class="urlbox">
         <b>Panel de control privado</b><br>
-        <code id="adminUrl"></code>
+        <code id="adminUrl" class="short-url"></code>
         <span class="meta">No compartas esta URL: contiene tu clave de administración.</span>
         <div class="copy">
           <button id="copyAdmin">Copiar panel privado</button>
         </div>
       </div>
 
-      <div class="room-tools">
-        <span class="meta">Administrar room</span>
-        <div class="row">
-          <input id="roomName" type="text" maxlength="60" placeholder="Nombre del overlay">
-          <button id="rename">Renombrar</button>
+      <details class="room-tools">
+        <summary>Administrar room</summary>
+        <div class="room-tools-content">
+          <div class="row">
+            <input id="roomName" type="text" maxlength="60" placeholder="Nombre del overlay">
+            <button id="rename">Renombrar</button>
+          </div>
+          <div class="copy">
+            <button id="regenKey">Regenerar clave privada</button>
+            <button id="deleteRoom" class="danger">Eliminar overlay</button>
+          </div>
         </div>
-        <div class="copy">
-          <button id="regenKey">Regenerar clave privada</button>
-          <button id="deleteRoom" class="danger">Eliminar overlay</button>
-        </div>
-      </div>
+      </details>
     </section>
   </div>
 
   <div class="preview-shell">
     <div class="preview-label">
-      <span>Preview · el cuadriculado representa transparencia</span>
+      <span>Así se verá en OBS · fondo transparente</span>
       <span>500 × 160</span>
     </div>
     <div class="preview"><iframe id="preview" scrolling="no"></iframe></div>
@@ -284,7 +298,7 @@ function renderMatches(d){
           <span class="teams">NEXT · ${esc(u.teams[0].acronym||u.teams[0].name)} vs ${esc(u.teams[1].acronym||u.teams[1].name)}</span>
           <span class="meta">${esc(u.event)}<br>${esc(u.stage)}</span>
         </span>
-        <span class="score">${esc(u.etaText||'SOON')}</span>
+        <span class="score"><span class="eta-label">Empieza en</span>${esc(u.etaText||'SOON')}</span>
       </div>`;
     }else{
       box.innerHTML='<span class="meta">No hay matches live ni próximas.</span>';
@@ -344,8 +358,10 @@ $('#glowRange').oninput=()=>{
 };
 
 const overlayUrl=`${location.origin}/overlay/${roomId}`;
-$('#overlayUrl').textContent=overlayUrl;
-$('#adminUrl').textContent=location.href;
+const overlayDisplay=`…/overlay/${roomId}`;
+const adminDisplay=`…/admin/${roomId}?key=••••••••`;
+$('#overlayUrl').textContent=overlayDisplay;
+$('#adminUrl').textContent=adminDisplay;
 $('#preview').src=`${overlayUrl}?preview=1`;
 
 $('#copyOverlay').onclick=async()=>{
@@ -358,15 +374,6 @@ $('#copyAdmin').onclick=async()=>{
   toast('Panel privado copiado ✓');
 };
 
-$('#copyObsSetup').onclick=async()=>{
-  const txt=`VALORANT Live Overlay
-URL: ${overlayUrl}
-Ancho: ${currentObs.width}
-Alto: ${currentObs.height}
-FPS: ${currentObs.fps}`;
-  await navigator.clipboard.writeText(txt);
-  toast('Configuración de OBS copiada ✓');
-};
 
 $('#rename').onclick=async()=>{
   const name=$('#roomName').value.trim();
