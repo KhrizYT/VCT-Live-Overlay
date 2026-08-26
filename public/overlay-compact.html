@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VALORANT Live Overlay v4.2</title>
+<title>VALORANT Live Overlay v4.2.1</title>
 <style>
   *{box-sizing:border-box}
   html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent!important}
@@ -193,6 +193,10 @@
   .logo img{
     max-width:32px;max-height:32px;object-fit:contain;
     filter:drop-shadow(0 0 8px rgba(255,255,255,.05));
+  }
+  .logo img.auto-light-logo,
+  .announce-logo img.auto-light-logo{
+    filter:brightness(0) invert(1) drop-shadow(0 0 8px rgba(255,255,255,.10));
   }
   .fallback{
     width:32px;height:32px;display:grid;place-items:center;
@@ -571,13 +575,63 @@ function shortText(v, max=20) {
   v = String(v || "");
   return v.length > max ? v.slice(0, max - 1) + "…" : v;
 }
+function normalizeTeamLogo(img) {
+  // VLR sometimes stores a black monochrome asset and makes it white on its
+  // own dark site with CSS. Our proxy returns the original PNG, so detect
+  // dark/neutral logos and light them automatically for this dark overlay.
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 36;
+    canvas.height = 36;
+
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let count = 0;
+    let luminance = 0;
+    let chroma = 0;
+
+    for (let i = 0; i < pixels.length; i += 4) {
+      const a = pixels[i + 3];
+      if (a < 40) continue;
+
+      const r = pixels[i];
+      const g = pixels[i + 1];
+      const b = pixels[i + 2];
+
+      // Ignore almost-white opaque canvas/background pixels if an upstream
+      // image was flattened instead of transparent.
+      if (r > 245 && g > 245 && b > 245) continue;
+
+      count++;
+      luminance += (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
+      chroma += Math.max(r, g, b) - Math.min(r, g, b);
+    }
+
+    if (count < 8) return;
+
+    const avgLum = luminance / count;
+    const avgChroma = chroma / count;
+
+    // Only neutral, genuinely dark marks are converted to white.
+    // Colored logos keep their original branding.
+    if (avgLum < 82 && avgChroma < 30) {
+      img.classList.add("auto-light-logo");
+    }
+  } catch (err) {
+    // If pixel inspection ever fails, keep the original image untouched.
+  }
+}
+
 function logoHtml(team) {
   const raw = String(team.logo || "").trim();
   if (raw) {
     const src = raw.startsWith("data:")
       ? raw
       : `/api/image-proxy?url=${encodeURIComponent(raw)}`;
-    return `<img src="${src.replace(/"/g,"&quot;")}" alt="" referrerpolicy="no-referrer">`;
+    return `<img src="${src.replace(/"/g,"&quot;")}" alt="" referrerpolicy="no-referrer" onload="normalizeTeamLogo(this)">`;
   }
   return `<div class="fallback">${team.code}</div>`;
 }
