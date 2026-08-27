@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VALORANT Live Overlay v4.2.1</title>
+<title>VALORANT Live Overlay v4.2.2</title>
 <style>
   *{box-sizing:border-box}
   html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent!important}
@@ -425,6 +425,14 @@
     justify-content:center;
     gap:4px;
     min-height:72px;
+  }
+
+  /* OBS/CEF safety:
+     author CSS can beat the browser's default [hidden] rule in some builds.
+     Force inactive center panels to stay fully hidden. */
+  #liveCenter[hidden],
+  #upcomingCenter[hidden]{
+    display:none !important;
   }
   .upcoming-kicker{
     font-size:7.5px;
@@ -884,6 +892,11 @@ async function render(s) {
   el("statusBadgeText").textContent = isUpcoming ? "NEXT" : (isCompleted ? "FINAL" : "LIVE");
   el("liveCenter").hidden = usesStatusCenter;
   el("upcomingCenter").hidden = !usesStatusCenter;
+
+  // Do not rely only on the HTML `hidden` attribute: some OBS/CEF versions
+  // can still apply .upcoming-center { display:flex }. Set display explicitly.
+  el("liveCenter").style.display = usesStatusCenter ? "none" : "block";
+  el("upcomingCenter").style.display = usesStatusCenter ? "flex" : "none";
 
   if (usesStatusCenter) {
     el("team1").style.setProperty("--team-color", s.team1.color || "#ff4655");
