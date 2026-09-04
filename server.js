@@ -307,7 +307,7 @@ function publicRoom(room,origin){
 }
 
 async function proxyImage(res,imageUrl){
-  try{const upstream=await fetch(imageUrl,{headers:{"User-Agent":"VLROverlayForVCTMatches/5.3"}});if(!upstream.ok)return text(res,upstream.status,"Unable to load image");const contentType=upstream.headers.get("content-type")||"image/png";const buffer=Buffer.from(await upstream.arrayBuffer());res.writeHead(200,{"Content-Type":contentType,"Content-Length":buffer.length,"Cache-Control":"public, max-age=900","Access-Control-Allow-Origin":"*"});res.end(buffer)}catch{text(res,500,"Image proxy error")}
+  try{const upstream=await fetch(imageUrl,{headers:{"User-Agent":"VLROverlayForVCTMatches/5.1"}});if(!upstream.ok)return text(res,upstream.status,"Unable to load image");const contentType=upstream.headers.get("content-type")||"image/png";const buffer=Buffer.from(await upstream.arrayBuffer());res.writeHead(200,{"Content-Type":contentType,"Content-Length":buffer.length,"Cache-Control":"public, max-age=900","Access-Control-Allow-Origin":"*"});res.end(buffer)}catch{text(res,500,"Image proxy error")}
 }
 
 function routeRoomApi(req,res,url,parts){
@@ -450,7 +450,7 @@ function routeRoomApi(req,res,url,parts){
 const server=http.createServer((req,res)=>{
   const url=new URL(req.url,`http://${req.headers.host||"localhost"}`); const parts=url.pathname.split("/").filter(Boolean);
   if(req.method==="OPTIONS"){res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type,X-Admin-Key","Access-Control-Allow-Methods":"GET,POST,OPTIONS"});return res.end()}
-  if(url.pathname==="/health")return json(res,200,{ok:true,version:"5.3.0",rooms:rooms.size,live:matches.length,providerError});
+  if(url.pathname==="/health")return json(res,200,{ok:true,version:"5.1.0",rooms:rooms.size,live:matches.length,providerError});
   if(req.method==="GET"&&url.pathname==="/api/config")return json(res,200,{
     provider:USE_DEMO?"demo":"vlr",
     providerError,
@@ -496,7 +496,7 @@ setInterval(refreshMatches,POLL_MS).unref();
 setInterval(pruneRooms,6*60*60*1000).unref();
 
 server.listen(PORT,"0.0.0.0",()=>{
-  console.log("VLR Overlay for VCT Matches v5.3");
+  console.log("VLR Overlay for VCT Matches v5.1");
   console.log(`Web: http://localhost:${PORT}/`);
   console.log(`Rooms: ${rooms.size}`);
   console.log(`Polling: ${POLL_MS/1000}s`);
