@@ -254,7 +254,7 @@ function publicRoom(room,origin){
 }
 
 async function proxyImage(res,imageUrl){
-  try{const upstream=await fetch(imageUrl,{headers:{"User-Agent":"VLROverlayForVCTMatches/4.9"}});if(!upstream.ok)return text(res,upstream.status,"Unable to load image");const contentType=upstream.headers.get("content-type")||"image/png";const buffer=Buffer.from(await upstream.arrayBuffer());res.writeHead(200,{"Content-Type":contentType,"Content-Length":buffer.length,"Cache-Control":"public, max-age=900","Access-Control-Allow-Origin":"*"});res.end(buffer)}catch{text(res,500,"Image proxy error")}
+  try{const upstream=await fetch(imageUrl,{headers:{"User-Agent":"VLROverlayForVCTMatches/4.10"}});if(!upstream.ok)return text(res,upstream.status,"Unable to load image");const contentType=upstream.headers.get("content-type")||"image/png";const buffer=Buffer.from(await upstream.arrayBuffer());res.writeHead(200,{"Content-Type":contentType,"Content-Length":buffer.length,"Cache-Control":"public, max-age=900","Access-Control-Allow-Origin":"*"});res.end(buffer)}catch{text(res,500,"Image proxy error")}
 }
 
 function routeRoomApi(req,res,url,parts){
@@ -429,7 +429,7 @@ setInterval(refreshMatches,POLL_MS).unref();
 setInterval(pruneRooms,6*60*60*1000).unref();
 
 server.listen(PORT,"0.0.0.0",()=>{
-  console.log("VLR Overlay for VCT Matches v4.9");
+  console.log("VLR Overlay for VCT Matches v4.10");
   console.log(`Web: http://localhost:${PORT}/`);
   console.log(`Rooms: ${rooms.size}`);
   console.log(`Polling: ${POLL_MS/1000}s`);

@@ -98,7 +98,7 @@ async function getJson(url, timeoutMs = 12000) {
     const res = await fetch(url, {
       headers: {
         "Accept": "application/json",
-        "User-Agent": "VLROverlayForVCTMatches/4.9"
+        "User-Agent": "VLROverlayForVCTMatches/4.10"
       },
       signal: ctrl.signal,
       cache: "no-store"
@@ -243,6 +243,90 @@ async function getEventLogo(bridge, eventName) {
   return logo;
 }
 
+function pickDetailEventLogo(details) {
+  const candidates = [
+    details?.eventLogo,
+    details?.event_logo,
+    details?.eventImage,
+    details?.event_image,
+    details?.event?.logo,
+    details?.event?.image,
+    details?.event?.thumb,
+    details?.tournament?.logo,
+    details?.tournament?.image,
+    details?.tournament?.thumb,
+    details?.league?.logo,
+    details?.league?.image,
+    details?.series?.logo,
+    details?.series?.image
+  ];
+
+  for (const value of candidates) {
+    const out = absUrl(value);
+    if (out) return out;
+  }
+  return "";
+}
+
+function inferDetailStatus(details) {
+  const raw = String(
+    details?.status || details?.matchStatus || details?.state || details?.match_state || ""
+  ).trim().toLowerCase();
+
+  if (/(live|running|ongoing|in\s*progress|playing|current)/i.test(raw)) return "running";
+  if (/(completed|complete|finished|final|ended|concluded|result)/i.test(raw)) return "completed";
+  if (/(upcoming|scheduled|pending|not\s*started|future|tbd)/i.test(raw)) return "upcoming";
+
+  const score1 = toNum(details?.team1?.score, NaN);
+  const score2 = toNum(details?.team2?.score, NaN);
+  if (Number.isFinite(score1) && Number.isFinite(score2) && (score1 > 0 || score2 > 0)) {
+    return "completed";
+  }
+
+  return "upcoming";
+}
+
+async function buildExactMatchFromDetails(id, details, preferredBridge) {
+  const [team1, team2] = await Promise.all([
+    enrichTeam(details?.team1?.name, details?.team1?.logo || "", details?.team1 || null),
+    enrichTeam(details?.team2?.name, details?.team2?.logo || "", details?.team2 || null)
+  ]);
+
+  const eventLogo =
+    pickDetailEventLogo(details) ||
+    await getEventLogo(preferredBridge, details?.event || details?.tournament?.name || "");
+
+  const status = inferDetailStatus(details);
+  const series1 = toNum(details?.team1?.score, 0);
+  const series2 = toNum(details?.team2?.score, 0);
+
+  return {
+    id,
+    status,
+    bestOf: parseBo(details?.format, null),
+    event: details?.event || details?.tournament?.name || "VALORANT",
+    stage: details?.stage || details?.round || "",
+    mapName: "",
+    eventLogo: eventLogo || "",
+    matchPage: `https://www.vlr.gg/${id}`,
+    seriesScore: [series1, series2],
+    roundScore: [null, null],
+    teams: [team1, team2],
+    etaText: status === "upcoming" ? "TBD" : "",
+    etaSeconds: null,
+    etaCapturedAt: Date.now(),
+    sourceDebug: {
+      pinned: true,
+      exactDetails: true,
+      localDetails: true,
+      inferredStatus: status,
+      usedDetailEventLogo: Boolean(eventLogo),
+      team1Profile: team1.metadataResolved,
+      team2Profile: team2.metadataResolved
+    }
+  };
+}
+
 async function enrichTeam(liveName, liveLogo, detailTeam) {
   const profile = detailTeam?.id ? await getLocalTeam(detailTeam.id) : null;
 
@@ -366,11 +450,12 @@ async function buildUpcomingFromBridgeItem(item, bridgeBase) {
   const details = await getLocalDetail(matchId);
   const [detail1, detail2] = alignDetailTeams(details, item?.team1 || "", item?.team2 || "");
 
-  const [team1, team2, eventLogo] = await Promise.all([
+  const [team1, team2, fetchedEventLogo] = await Promise.all([
     enrichTeam(item?.team1, item?.team1_logo || "", detail1),
     enrichTeam(item?.team2, item?.team2_logo || "", detail2),
     getEventLogo(bridgeBase, item?.match_event || details?.event || "")
   ]);
+  const eventLogo = pickDetailEventLogo(details) || fetchedEventLogo;
 
   const eta = parseEtaSeconds(item?.time_until_match);
 
@@ -419,6 +504,7 @@ async function buildUpcomingFromLocalItem(item, preferredBridge) {
   const labels = normalizeLocalUpcomingLabels(item);
   const eventLogo =
     absUrl(item?.eventLogo || "") ||
+    pickDetailEventLogo(details) ||
     await getEventLogo(preferredBridge, labels.event);
 
   const eta = parseEtaSeconds(item?.eta);
@@ -453,59 +539,32 @@ async function getPinnedMatch(matchId, preferredBridge = DEFAULT_BRIDGE) {
   const id = parseVlrMatchId(matchId);
   if (!id) return null;
 
-  // 1) Prefer VLR's upcoming feed because it gives the most useful ETA.
+  const details = await getLocalDetail(id);
+  const detailStatus = details ? inferDetailStatus(details) : "upcoming";
+
+  // If the pinned VLR match is already LIVE or completed, trust exact details first
+  // so the overlay can show the real result instead of forcing an upcoming countdown.
+  if (details && detailStatus !== "upcoming") {
+    return await buildExactMatchFromDetails(id, details, preferredBridge);
+  }
+
+  // Prefer the bridge upcoming feed for real ETA on future matches.
   try {
     const upcoming = await getUpcomingFromBridge(preferredBridge);
     const item = upcoming.items.find(seg => matchIdFromPage(seg?.match_page) === id);
     if (item) return await buildUpcomingFromBridgeItem(item, upcoming.base);
   } catch {}
 
-  // 2) The self-hosted VLR API can include matches farther in the future.
+  // The self-hosted VLR API can include matches farther in the future.
   const localUpcoming = await getLocalUpcomingMatches();
   const localItem = localUpcoming.find(item => String(item?.id || "") === id);
   if (localItem) return await buildUpcomingFromLocalItem(localItem, preferredBridge);
 
-  // 3) Exact match detail fallback. Useful for completed matches and for
-  // validating that a pasted VLR link really points to a match.
-  const details = await getLocalDetail(id);
-  if (!details) return null;
-
-  const [team1, team2, eventLogo] = await Promise.all([
-    enrichTeam(details?.team1?.name, details?.team1?.logo || "", details?.team1 || null),
-    enrichTeam(details?.team2?.name, details?.team2?.logo || "", details?.team2 || null),
-    getEventLogo(preferredBridge, details?.event || "")
-  ]);
-
-  const statusRaw = String(details?.status || "").toLowerCase();
-  const completed = statusRaw === "completed";
-  const upcoming = statusRaw === "upcoming";
-
-  return {
-    id,
-    status: completed ? "completed" : (upcoming ? "upcoming" : "upcoming"),
-    bestOf: parseBo(details?.format, null),
-    event: details?.event || "VALORANT",
-    stage: details?.stage || "",
-    mapName: "",
-    eventLogo: eventLogo || "",
-    matchPage: `https://www.vlr.gg/${id}`,
-    seriesScore: [
-      toNum(details?.team1?.score, 0),
-      toNum(details?.team2?.score, 0)
-    ],
-    roundScore: [null, null],
-    teams: [team1, team2],
-    etaText: upcoming ? "TBD" : "",
-    etaSeconds: null,
-    etaCapturedAt: Date.now(),
-    sourceDebug: {
-      pinned: true,
-      exactDetails: true,
-      localDetails: true,
-      team1Profile: team1.metadataResolved,
-      team2Profile: team2.metadataResolved
-    }
-  };
+  // Final fallback: exact details, including completed results.
+  if (details) {
+    return await buildExactMatchFromDetails(id, details, preferredBridge);
+  }
+  return null;
 }
 
 async function getNearestUpcoming(preferredBridge = DEFAULT_BRIDGE) {
@@ -556,11 +615,12 @@ async function getRunningMatches(preferredBridge = DEFAULT_BRIDGE) {
     const details = localApiReady ? await getLocalDetail(matchId) : null;
     const [detail1, detail2] = alignDetailTeams(details, seg.team1, seg.team2);
 
-    const [team1, team2, eventLogo] = await Promise.all([
+    const [team1, team2, fetchedEventLogo] = await Promise.all([
       enrichTeam(seg.team1, seg.team1_logo, detail1),
       enrichTeam(seg.team2, seg.team2_logo, detail2),
       getEventLogo(live.base, seg.match_event || details?.event || "")
     ]);
+    const eventLogo = pickDetailEventLogo(details) || fetchedEventLogo;
 
     const series1 = toNum(seg.score1);
     const series2 = toNum(seg.score2);
