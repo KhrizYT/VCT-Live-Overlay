@@ -9,6 +9,8 @@ const LOCAL_API = process.env.VLR_LOCAL_API || "http://127.0.0.1:3002/api";
 const profileCache = new Map();
 const detailCache = new Map();
 const eventLogoCache = new Map();
+const hostedDetailCache = new Map();
+const eventSearchCache = new Map();
 let eventsCache = { at: 0, items: [] };
 let upcomingBridgeCache = { at: 0, preferred: "", value: null };
 let localUpcomingCache = { at: 0, items: [] };
@@ -74,6 +76,11 @@ function matchIdFromPage(value) {
   const m = s.match(/vlr\.gg\/(\d+)/i) || s.match(/^\/?(\d+)/);
   return m ? m[1] : "";
 }
+function eventIdFromPage(value) {
+  const s = String(value || "");
+  const m = s.match(/(?:vlr\.gg)?\/?event\/(\d+)/i);
+  return m ? m[1] : "";
+}
 
 function parseVlrMatchId(value) {
   const s = String(value || "").trim();
@@ -98,7 +105,7 @@ async function getJson(url, timeoutMs = 12000) {
     const res = await fetch(url, {
       headers: {
         "Accept": "application/json",
-        "User-Agent": "VLROverlayForVCTMatches/4.10"
+        "User-Agent": "VLROverlayForVCTMatches/5.0"
       },
       signal: ctrl.signal,
       cache: "no-store"
@@ -109,6 +116,106 @@ async function getJson(url, timeoutMs = 12000) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+
+function unwrapV2Data(payload) {
+  if (!payload) return null;
+  if (payload?.status === "success" && payload?.data) return payload.data;
+  if (payload?.data?.data) return payload.data.data;
+  if (payload?.data) return payload.data;
+  return payload;
+}
+
+async function getHostedMatchDetail(matchId, preferredBridge = DEFAULT_BRIDGE) {
+  const id = String(matchId || "").trim();
+  if (!id) return null;
+  const cached = hostedDetailCache.get(id);
+  if (cached && Date.now() - cached.at < 30000) return cached.value;
+
+  const candidates = [...new Set([normBase(preferredBridge), ...FALLBACK_BRIDGES.map(normBase)])];
+  for (const base of candidates) {
+    for (const path of [
+      `/v2/match/details?match_id=${encodeURIComponent(id)}`,
+      `/match/details?match_id=${encodeURIComponent(id)}`
+    ]) {
+      try {
+        const payload = await getJson(`${base}${path}`, 12000);
+        const value = unwrapV2Data(payload);
+        const detail = value?.match_id || value?.teams || value?.event ? value : value?.data || null;
+        if (detail) {
+          hostedDetailCache.set(id, { at: Date.now(), value: { detail, base } });
+          return { detail, base };
+        }
+      } catch {}
+    }
+  }
+  hostedDetailCache.set(id, { at: Date.now(), value: null });
+  return null;
+}
+
+function hostedDetailToLocal(detail) {
+  if (!detail) return null;
+  const teams = Array.isArray(detail?.teams) ? detail.teams : [];
+  return {
+    status: detail?.status || "",
+    event: detail?.event?.name || detail?.event || "",
+    stage: detail?.event?.series || detail?.series || detail?.stage || "",
+    format: detail?.format || detail?.best_of || detail?.bestOf || "",
+    team1: teams[0] ? {
+      id: teams[0]?.id || null,
+      name: teams[0]?.name || "TBD",
+      logo: absUrl(teams[0]?.logo || ""),
+      score: toNum(teams[0]?.score, 0)
+    } : null,
+    team2: teams[1] ? {
+      id: teams[1]?.id || null,
+      name: teams[1]?.name || "TBD",
+      logo: absUrl(teams[1]?.logo || ""),
+      score: toNum(teams[1]?.score, 0)
+    } : null,
+    maps: Array.isArray(detail?.maps) ? detail.maps : []
+  };
+}
+
+async function getEventLogoBySearch(bridge, eventName) {
+  const key = normalize(eventName);
+  if (!key) return "";
+  const cached = eventSearchCache.get(key);
+  if (cached && Date.now() - cached.at < 30 * 60 * 1000) return cached.logo;
+
+  const candidates = [...new Set([normBase(bridge), ...FALLBACK_BRIDGES.map(normBase)])];
+  for (const base of candidates) {
+    try {
+      const payload = await getJson(`${base}/v2/search?q=${encodeURIComponent(eventName)}`, 10000);
+      const data = unwrapV2Data(payload);
+      const events = data?.segments?.results?.events || data?.results?.events || [];
+      let best = null;
+      let bestScore = 0;
+      for (const ev of Array.isArray(events) ? events : []) {
+        const score = similarity(ev?.name || ev?.title || "", eventName);
+        if (score > bestScore) { best = ev; bestScore = score; }
+      }
+      if (best && bestScore >= .35) {
+        let logo = absUrl(best?.img || best?.logo || best?.thumb || "");
+        const eventId = best?.id || best?.event_id || eventIdFromPage(best?.url_path || best?.url || "");
+        if (!logo && eventId) {
+          try {
+            const detailPayload = await getJson(`${base}/v2/event/${encodeURIComponent(eventId)}`, 10000);
+            const detailData = unwrapV2Data(detailPayload);
+            logo = absUrl(detailData?.segments?.event?.logo || detailData?.event?.logo || "");
+          } catch {}
+        }
+        if (logo) {
+          eventSearchCache.set(key, { at: Date.now(), logo });
+          return logo;
+        }
+      }
+    } catch {}
+  }
+
+  eventSearchCache.set(key, { at: Date.now(), logo: "" });
+  return "";
 }
 
 async function getLiveScore(preferredBridge = DEFAULT_BRIDGE) {
@@ -235,10 +342,11 @@ async function getEventLogo(bridge, eventName) {
     }
   }
 
-  const logo = bestScore >= 0.30
+  let logo = bestScore >= 0.30
     ? absUrl(best?.thumb || best?.logo || best?.image || "")
     : "";
 
+  if (!logo) logo = await getEventLogoBySearch(bridge, eventName);
   eventLogoCache.set(key, { at: Date.now(), logo });
   return logo;
 }
@@ -292,9 +400,13 @@ async function buildExactMatchFromDetails(id, details, preferredBridge) {
     enrichTeam(details?.team2?.name, details?.team2?.logo || "", details?.team2 || null)
   ]);
 
+  const eventName = typeof details?.event === "string"
+    ? details.event
+    : (details?.event?.name || details?.tournament?.name || "VALORANT");
+  const stageName = details?.stage || details?.event?.series || details?.round || "";
   const eventLogo =
     pickDetailEventLogo(details) ||
-    await getEventLogo(preferredBridge, details?.event || details?.tournament?.name || "");
+    await getEventLogo(preferredBridge, eventName);
 
   const status = inferDetailStatus(details);
   const series1 = toNum(details?.team1?.score, 0);
@@ -304,8 +416,8 @@ async function buildExactMatchFromDetails(id, details, preferredBridge) {
     id,
     status,
     bestOf: parseBo(details?.format, null),
-    event: details?.event || details?.tournament?.name || "VALORANT",
-    stage: details?.stage || details?.round || "",
+    event: eventName,
+    stage: stageName,
     mapName: "",
     eventLogo: eventLogo || "",
     matchPage: `https://www.vlr.gg/${id}`,
@@ -318,7 +430,6 @@ async function buildExactMatchFromDetails(id, details, preferredBridge) {
     sourceDebug: {
       pinned: true,
       exactDetails: true,
-      localDetails: true,
       inferredStatus: status,
       usedDetailEventLogo: Boolean(eventLogo),
       team1Profile: team1.metadataResolved,
@@ -539,31 +650,42 @@ async function getPinnedMatch(matchId, preferredBridge = DEFAULT_BRIDGE) {
   const id = parseVlrMatchId(matchId);
   if (!id) return null;
 
-  const details = await getLocalDetail(id);
-  const detailStatus = details ? inferDetailStatus(details) : "upcoming";
+  // Hosted V2 match/details works for completed matches as well as future/live ones.
+  const hosted = await getHostedMatchDetail(id, preferredBridge);
+  const hostedLocal = hosted?.detail ? hostedDetailToLocal(hosted.detail) : null;
+  const hostedStatus = hostedLocal ? inferDetailStatus(hostedLocal) : "upcoming";
 
-  // If the pinned VLR match is already LIVE or completed, trust exact details first
-  // so the overlay can show the real result instead of forcing an upcoming countdown.
-  if (details && detailStatus !== "upcoming") {
-    return await buildExactMatchFromDetails(id, details, preferredBridge);
+  if (hostedLocal && hostedStatus !== "upcoming") {
+    return await buildExactMatchFromDetails(id, hostedLocal, hosted?.base || preferredBridge);
   }
 
-  // Prefer the bridge upcoming feed for real ETA on future matches.
+  // Prefer bridge upcoming for its human-friendly ETA, but merge exact metadata/logo.
   try {
     const upcoming = await getUpcomingFromBridge(preferredBridge);
     const item = upcoming.items.find(seg => matchIdFromPage(seg?.match_page) === id);
-    if (item) return await buildUpcomingFromBridgeItem(item, upcoming.base);
+    if (item) {
+      const result = await buildUpcomingFromBridgeItem(item, upcoming.base);
+      if (hostedLocal) {
+        const exactEvent = hostedLocal?.event || "";
+        if (exactEvent) result.event = exactEvent;
+        if (hostedLocal?.stage) result.stage = hostedLocal.stage;
+        const exactLogo = await getEventLogo(upcoming.base, exactEvent || result.event);
+        if (exactLogo) result.eventLogo = exactLogo;
+      }
+      return result;
+    }
   } catch {}
 
-  // The self-hosted VLR API can include matches farther in the future.
   const localUpcoming = await getLocalUpcomingMatches();
   const localItem = localUpcoming.find(item => String(item?.id || "") === id);
   if (localItem) return await buildUpcomingFromLocalItem(localItem, preferredBridge);
 
-  // Final fallback: exact details, including completed results.
-  if (details) {
-    return await buildExactMatchFromDetails(id, details, preferredBridge);
+  if (hostedLocal) {
+    return await buildExactMatchFromDetails(id, hostedLocal, hosted?.base || preferredBridge);
   }
+
+  const details = await getLocalDetail(id);
+  if (details) return await buildExactMatchFromDetails(id, details, preferredBridge);
   return null;
 }
 

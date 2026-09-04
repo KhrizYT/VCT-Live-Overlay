@@ -1,6 +1,6 @@
 {
   "name": "vlr-overlay-for-vct-matches",
-  "version": "4.10.0",
+  "version": "5.0.0",
   "private": true,
   "scripts": {
     "start": "node server.js"

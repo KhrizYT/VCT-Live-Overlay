@@ -577,7 +577,14 @@ if (new URLSearchParams(location.search).get("preview") === "1") {
 // v4.0.1 referenced `roomId` below without declaring it, which made
 // the Browser Source stop before the first fetch and left the preview blank.
 const pathParts = location.pathname.split("/").filter(Boolean);
-const roomId = pathParts[0] === "overlay" ? pathParts[1] : null;
+const query = new URLSearchParams(location.search);
+const roomId = pathParts[0] === "overlay" && pathParts[1] ? pathParts[1] : null;
+const publicMode = pathParts[0] === "overlay" && !roomId;
+let publicMatchId = query.get("matchId") || query.get("match") || "";
+let publicOpacity = Number(query.get("opacity"));
+let publicGlow = Number(query.get("glow"));
+if (!Number.isFinite(publicOpacity)) publicOpacity = .92;
+if (!Number.isFinite(publicGlow)) publicGlow = .82;
 
 let previous = null;
 const accentCache = new Map();
@@ -1155,11 +1162,39 @@ async function render(s) {
 
   previous = JSON.parse(JSON.stringify(s));
 }
-if (!roomId) {
-  el("overlay").hidden = true;
-  el("waiting").style.display = "block";
-  el("waiting").textContent = "ROOM ID NO ENCONTRADO";
-} else {
+async function loadPublicState(){
+  try{
+    const qs=new URLSearchParams();
+    if(publicMatchId)qs.set("matchId",publicMatchId);
+    qs.set("opacity",String(publicOpacity));
+    qs.set("glow",String(publicGlow));
+    const r=await fetch(`/api/public/state?${qs.toString()}`,{cache:"no-store"});
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    const s=await r.json();
+    s.ui={...(s.ui||{}),backgroundOpacity:publicOpacity,glowIntensity:publicGlow};
+    await render(s);
+  }catch(err){
+    console.error("[overlay] public state failed:",err);
+    el("overlay").hidden=true;
+    el("waiting").style.display="block";
+    el("waiting").textContent="NO SE PUDO CARGAR EL OVERLAY";
+  }
+}
+
+window.addEventListener("message",event=>{
+  const data=event?.data;
+  if(!data||data.type!=="vlr-overlay-settings")return;
+  const opacity=Number(data.opacity),glow=Number(data.glow);
+  if(Number.isFinite(opacity))publicOpacity=Math.max(.35,Math.min(1,opacity));
+  if(Number.isFinite(glow))publicGlow=Math.max(0,Math.min(1.6,glow));
+  el("overlay").style.setProperty("--overlay-opacity",publicOpacity.toFixed(2));
+  applyGlowStrength(publicGlow);
+});
+
+if(publicMode){
+  loadPublicState();
+  setInterval(loadPublicState,5000);
+}else if(roomId){
   fetch(`/api/rooms/${roomId}/state`)
     .then(r => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -1178,6 +1213,10 @@ if (!roomId) {
     try { render(JSON.parse(e.data)); }
     catch (err) { console.error("[overlay] state parse failed:", err); }
   });
+}else{
+  el("overlay").hidden=true;
+  el("waiting").style.display="block";
+  el("waiting").textContent="OVERLAY NO VÁLIDO";
 }
 </script>
 </body>

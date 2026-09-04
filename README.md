@@ -1,7 +1,15 @@
-# VLR Overlay for VCT Matches · v4.10
+# VLR Overlay for VCT Matches · v5.0
 
-> Nombre del proyecto actualizado a **VLR Overlay for VCT Matches**.
-> v4.10 elimina el matchup de demostración de la landing y reorganiza el Admin como un Live Studio: preview + Opacidad + Glow + OBS permanecen juntos en una columna sticky, con estética KZTTS en negro/rojo, iluminación del cursor y tilt sutil.
+> v5.0 convierte el proyecto en un Studio público de una sola página. Ya no hace falta crear rooms ni usar un panel privado: la match, opacidad y glow viajan dentro de la URL del Browser Source de OBS.
+
+## Cambios principales de v5.0
+- `/` abre directamente el Studio público.
+- El usuario elige Automático o pega cualquier Match ID/URL de VLR.
+- `/overlay?matchId=...&opacity=...&glow=...` funciona sin room ni clave.
+- El preview y OBS consumen un endpoint público stateless.
+- Las matches específicas consultan `/v2/match/details?match_id=...`, por lo que una match ya terminada puede mostrar su resultado real.
+- El glow del evento intenta obtener el logo real del evento mediante VLR API y extraer su color dominante.
+- Las URLs antiguas de rooms siguen existiendo solo por compatibilidad, pero la interfaz pública ya no las usa.
 
 Esta versión conserva el comportamiento visual/live de v3.0.4, pero cambia la distribución:
 **el usuario de OBS no instala nada**.

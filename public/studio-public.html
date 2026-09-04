@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#050506">
+<title>VLR Overlay for VCT Matches</title>
+<style>
+:root{color-scheme:dark;--bg:#030304;--panel:rgba(14,14,17,.82);--panel2:rgba(255,255,255,.035);--line:rgba(255,255,255,.08);--line-red:rgba(255,70,85,.28);--text:#f5f5f6;--muted:#9b9ba5;--faint:#686873;--red:#ff4655;--red2:#ff5c69;--green:#58d39b}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:radial-gradient(900px 560px at 88% 0%,rgba(255,70,85,.10),transparent 62%),radial-gradient(640px 480px at 7% 18%,rgba(255,70,85,.055),transparent 66%),linear-gradient(180deg,#070709,#000 74%);font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text);-webkit-font-smoothing:antialiased}body::before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.014) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.014) 1px,transparent 1px);background-size:52px 52px;mask-image:linear-gradient(#000,transparent 78%)}
+.cursor-aura{position:fixed;width:420px;height:420px;border-radius:50%;left:0;top:0;pointer-events:none;z-index:0;transform:translate3d(calc(var(--mx,55vw) - 50%),calc(var(--my,25vh) - 50%),0);background:radial-gradient(circle,rgba(255,70,85,.15),rgba(255,70,85,.075) 32%,transparent 70%);filter:blur(20px)}
+.app{position:relative;z-index:1;width:min(1500px,calc(100% - 28px));margin:14px auto 36px;display:grid;grid-template-columns:190px minmax(0,1fr);gap:14px}.glass{background:var(--panel);backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);border:1px solid var(--line);box-shadow:0 20px 55px rgba(0,0,0,.58),inset 0 1px rgba(255,255,255,.02)}
+.sidebar{height:calc(100vh - 28px);min-height:620px;position:sticky;top:14px;border-radius:22px;padding:14px 12px;display:flex;flex-direction:column}.brand{display:flex;gap:10px;align-items:center;padding:8px 8px 18px;border-bottom:1px solid var(--line)}.mark{width:40px;height:40px;display:grid;place-items:center;border-radius:13px;background:rgba(255,70,85,.10);border:1px solid rgba(255,70,85,.30);font-weight:950}.brand b{display:block;font-size:13px}.brand small{display:block;color:var(--faint);font-size:9px;margin-top:1px}.nav{display:grid;gap:6px;margin-top:14px}.nav a{color:var(--muted);text-decoration:none;padding:10px 11px;border-radius:11px;font-size:12px;font-weight:750;border:1px solid transparent}.nav a:hover{color:#fff;background:rgba(255,70,85,.075);border-color:rgba(255,70,85,.18)}.sidebar-note{margin-top:auto;border-top:1px solid var(--line);padding:13px 8px 4px;color:var(--faint);font-size:10px}.sidebar-note b{display:block;color:#c8c8cd;font-size:10px;margin-bottom:4px}
+.content{min-width:0}.hero{border-radius:22px;padding:19px 20px;margin-bottom:12px;display:flex;gap:18px;justify-content:space-between;align-items:flex-start}.eyebrow{font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:#b0adb2;font-weight:900}.eyebrow::before{content:"";display:inline-block;width:6px;height:6px;background:var(--red);border-radius:50%;margin-right:7px;box-shadow:0 0 11px rgba(255,70,85,.65)}h1{margin:5px 0 4px;font-size:29px;line-height:1.02;letter-spacing:-.055em}.accent{background:linear-gradient(135deg,#fff,#ff9ea7 65%,#ff5967);-webkit-background-clip:text;background-clip:text;color:transparent}.sub{color:var(--muted);font-size:12px;margin:0}.hero-actions{display:flex;gap:8px}.pills{display:flex;gap:7px;flex-wrap:wrap;margin-top:13px}.pill{padding:6px 9px;border-radius:999px;border:1px solid var(--line);background:rgba(0,0,0,.2);font-size:10px;color:var(--muted)}.pill b{color:#fff}.pill.good{border-color:rgba(88,211,155,.28);color:#9be5bf}
+button,input{font:inherit}button{border:1px solid var(--line);background:rgba(255,255,255,.035);color:#fff;border-radius:11px;padding:10px 13px;cursor:pointer;transition:.17s ease}button:hover{border-color:rgba(255,255,255,.16);background:rgba(255,255,255,.06);transform:translateY(-1px)}button.primary{background:linear-gradient(180deg,#ff5967,#ec3949);border-color:#ff6470;font-weight:850;box-shadow:0 10px 28px rgba(255,70,85,.16)}button.primary:hover{box-shadow:0 12px 34px rgba(255,70,85,.24)}button:disabled{opacity:.5;cursor:not-allowed;transform:none}.status{margin-bottom:12px;border:1px solid rgba(88,211,155,.22);background:rgba(88,211,155,.035);border-radius:13px;padding:9px 11px;color:#85d9ad;font-size:11px}.status::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 9px rgba(88,211,155,.5);margin-right:8px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(500px,.96fr);gap:12px;align-items:start}.card{border-radius:20px;padding:14px}.section-title{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.11em;margin:0}.section-sub{font-size:10px;color:var(--faint);margin:3px 0 11px}.source-mode{display:grid;grid-template-columns:1fr 1fr;gap:5px;border:1px solid var(--line);padding:4px;border-radius:13px;background:rgba(0,0,0,.22)}.source-mode button{border-color:transparent;background:transparent;font-size:11px;font-weight:850}.source-mode button.active{background:rgba(255,70,85,.10);border-color:rgba(255,70,85,.33);box-shadow:0 0 18px rgba(255,70,85,.08)}.pin-panel{margin-top:10px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);padding:12px}.pin-panel[hidden]{display:none}.pin-panel b{font-size:12px}.pin-panel p{font-size:10px;color:var(--muted);margin:3px 0 8px}.pin-row{display:grid;grid-template-columns:1fr auto;gap:7px}input[type=text]{min-width:0;width:100%;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.32);color:#fff;padding:10px 11px;outline:none}input[type=text]:focus{border-color:rgba(255,70,85,.40);box-shadow:0 0 0 3px rgba(255,70,85,.06)}
+.current{margin-top:10px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(130deg,rgba(255,70,85,.045),rgba(255,255,255,.02));padding:13px}.current-top{display:flex;justify-content:space-between;gap:12px;align-items:center}.badge{display:inline-flex;border:1px solid rgba(255,70,85,.34);background:rgba(255,70,85,.07);color:#ff9da6;border-radius:999px;padding:4px 7px;font-size:8px;font-weight:900;letter-spacing:.09em;text-transform:uppercase}.current h3{font-size:18px;margin:7px 0 2px;letter-spacing:-.03em}.current-meta{color:var(--muted);font-size:10px}.current-value{text-align:right;font-size:21px;font-weight:950;white-space:nowrap}.match-actions{display:flex;gap:7px;margin-top:10px}.match-actions a{color:#fff;text-decoration:none;border:1px solid var(--line);padding:7px 9px;border-radius:9px;font-size:10px}.separator{height:1px;background:var(--line);margin:13px 0}.matches{display:grid;gap:7px}.match{width:100%;display:grid;grid-template-columns:1fr auto;gap:12px;text-align:left;padding:12px;border:1px solid var(--line);background:rgba(255,255,255,.022);border-radius:13px}.match:hover{background:rgba(255,255,255,.04)}.match strong{font-size:15px}.match .meta{font-size:9px;color:var(--muted);margin-top:3px}.eta{text-align:right;align-self:center;font-weight:950;font-size:17px}.eta small{display:block;color:var(--faint);font-size:7px;letter-spacing:.1em;text-transform:uppercase}
+.studio{position:sticky;top:14px}.studio-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.live-dot{font-size:9px;color:#ff9da6;text-transform:uppercase;font-weight:800}.live-dot::before{content:"";display:inline-block;width:6px;height:6px;background:var(--red);border-radius:50%;margin-right:6px;box-shadow:0 0 9px rgba(255,70,85,.6)}.preview{min-height:204px;border-radius:15px;border:1px solid var(--line);background:repeating-conic-gradient(#14161a 0 25%,#0b0c0f 0 50%) 50%/20px 20px;display:grid;place-items:center;overflow:hidden;padding:14px}.preview iframe{width:500px;height:160px;border:0;background:transparent}.preview-meta{display:flex;justify-content:space-between;color:var(--faint);font-size:9px;margin:6px 2px 9px}.sliders{display:grid;grid-template-columns:1fr 1fr;gap:7px}.setting{border:1px solid var(--line);background:rgba(255,255,255,.025);border-radius:13px;padding:10px}.setting-head{display:flex;justify-content:space-between;align-items:flex-start}.setting b{font-size:11px}.setting span{display:block;color:var(--muted);font-size:9px;margin-top:2px}.value{border:1px solid rgba(255,70,85,.28);background:rgba(255,70,85,.07);padding:5px 7px;border-radius:999px;font-size:9px;font-weight:900;color:#ffabb2}input[type=range]{width:100%;accent-color:var(--red);margin-top:8px}.obs{margin-top:8px;border:1px solid var(--line-red);background:linear-gradient(135deg,rgba(255,70,85,.055),rgba(255,255,255,.015));border-radius:14px;padding:11px}.obs-top{display:flex;justify-content:space-between;gap:10px}.obs-top b{font-size:11px}.obs-top span{font-size:8px;border:1px solid rgba(255,70,85,.30);border-radius:999px;padding:4px 6px;color:#ff9ca5}.obs p{color:var(--muted);font-size:9px;margin:3px 0 9px}.obs-values{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.obs-value{text-align:center;border:1px solid var(--line);background:rgba(0,0,0,.28);border-radius:10px;padding:9px}.obs-value b{font-size:17px}.obs-value small{display:block;color:var(--faint);font-size:7px;text-transform:uppercase;letter-spacing:.1em}.copy-main{width:100%;margin-top:7px}.urlbox{margin-top:8px;border:1px solid var(--line);border-radius:12px;padding:9px;background:rgba(255,255,255,.02)}.urlbox b{display:block;font-size:9px;margin-bottom:4px}.urlbox code{display:block;color:#b9b9c2;font-size:9px;word-break:break-all}.public-note{margin-top:8px;color:var(--faint);font-size:9px}.toast{position:fixed;right:18px;bottom:18px;border:1px solid var(--line);background:rgba(20,20,23,.9);backdrop-filter:blur(18px);padding:9px 12px;border-radius:11px;font-size:10px;opacity:0;transform:translateY(8px);transition:.18s;pointer-events:none}.toast.show{opacity:1;transform:translateY(0)}
+@media(max-width:1050px){.app{grid-template-columns:72px minmax(0,1fr)}.brand{justify-content:center;padding-inline:0}.brand>div:last-child,.nav span,.sidebar-note{display:none}.nav a{text-align:center}.grid{grid-template-columns:1fr}.studio{position:relative;top:0}}
+@media(max-width:720px){.app{display:block;width:calc(100% - 12px);margin-top:6px}.sidebar{display:none}.hero{display:block;padding:16px}.hero-actions{margin-top:12px}.grid{display:block}.card{margin-bottom:10px}.sliders{grid-template-columns:1fr}.source-mode{grid-template-columns:1fr}.pin-row{grid-template-columns:1fr}.preview{padding:5px;overflow:auto}}
+</style>
+</head>
+<body>
+<div class="cursor-aura" aria-hidden="true"></div>
+<div class="app">
+  <aside class="sidebar glass">
+    <div class="brand"><div class="mark">VLR</div><div><b>VLR Overlay</b><small>for VCT Matches</small></div></div>
+    <nav class="nav">
+      <a href="#control">⌁ <span>Control</span></a>
+      <a href="#studio">◉ <span>Studio</span></a>
+      <a href="#obs">▣ <span>OBS / Link</span></a>
+    </nav>
+    <div class="sidebar-note"><b>Uso público</b>Sin cuenta, rooms ni panel privado. La configuración viaja dentro de tu URL de OBS.</div>
+  </aside>
+
+  <main class="content">
+    <header class="hero glass">
+      <div>
+        <div class="eyebrow">VCT / VLR · Public Overlay Studio</div>
+        <h1>VLR <span class="accent">Overlay</span> for VCT Matches</h1>
+        <p class="sub">Elige una partida, ajusta el look y copia tu Browser Source. No tienes que crear ningún overlay.</p>
+        <div class="pills"><span class="pill" id="sourcePill">VLR: <b id="sourceState">…</b></span><span class="pill">Live: <b id="liveCount">0</b></span><span class="pill">Match: <b id="selectedLabel">—</b></span></div>
+      </div>
+      <div class="hero-actions"><button id="refresh">Actualizar datos</button></div>
+    </header>
+
+    <div class="status" id="status">Conectando con VLR…</div>
+
+    <div class="grid">
+      <section class="card glass" id="control">
+        <h2 class="section-title">Control de partida</h2>
+        <p class="section-sub">Automático o pega cualquier match de VLR, incluso una ya terminada.</p>
+        <div class="source-mode"><button id="modeAuto" class="active">Automático</button><button id="modeSpecific">Match específica</button></div>
+        <div class="pin-panel" id="pinPanel" hidden>
+          <b>Cargar una match de VLR</b><p>Pega el enlace completo o solamente el Match ID.</p>
+          <div class="pin-row"><input id="pinInput" type="text" placeholder="https://www.vlr.gg/734311/..."><button id="loadMatch" class="primary">Cargar match</button></div>
+        </div>
+        <div class="current" id="currentCard">
+          <div class="current-top"><div><span class="badge" id="currentBadge">AUTOMÁTICO</span><h3 id="currentTeams">—</h3><div class="current-meta" id="currentMeta">Esperando datos…</div></div><div class="current-value" id="currentValue">—</div></div>
+          <div class="match-actions"><a id="openVlr" href="#" target="_blank" rel="noopener" hidden>Abrir en VLR</a></div>
+        </div>
+        <div class="separator"></div>
+        <h2 class="section-title">Matches disponibles</h2><p class="section-sub">Puedes fijar cualquiera; tu URL de OBS conservará esa selección.</p>
+        <div class="matches" id="matches"></div>
+      </section>
+
+      <section class="card glass studio" id="studio">
+        <div class="studio-head"><h2 class="section-title">Live Studio</h2><span class="live-dot">Preview en tiempo real</span></div>
+        <div class="preview"><iframe id="preview" scrolling="no"></iframe></div>
+        <div class="preview-meta"><span>Fondo transparente · mismo Browser Source de OBS</span><span>500 × 160</span></div>
+        <div class="sliders">
+          <div class="setting"><div class="setting-head"><div><b>Opacidad</b><span>Fondo del panel</span></div><div class="value" id="opacityValue">92%</div></div><input id="opacityRange" type="range" min="35" max="100" value="92"></div>
+          <div class="setting"><div class="setting-head"><div><b>Glow</b><span>Brillo exterior</span></div><div class="value" id="glowValue">82%</div></div><input id="glowRange" type="range" min="0" max="160" value="82"></div>
+        </div>
+        <div class="obs" id="obs"><div class="obs-top"><b>Configuración recomendada para OBS</b><span>Browser Source</span></div><p>La selección y tus ajustes se guardan directamente en esta URL.</p><div class="obs-values"><div class="obs-value"><b>500</b><small>Ancho</small></div><div class="obs-value"><b>160</b><small>Alto</small></div><div class="obs-value"><b>30</b><small>FPS</small></div></div><button id="copyOverlay" class="primary copy-main">COPIAR URL PARA OBS</button></div>
+        <div class="urlbox"><b>Browser Source de OBS</b><code id="overlayUrl"></code></div>
+        <div class="public-note">No hay panel privado ni clave. Cada persona obtiene su propia URL con la match y ajustes elegidos.</div>
+      </section>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const $=s=>document.querySelector(s);
+const storeKey='vlr-public-studio-v1';
+const saved=(()=>{try{return JSON.parse(localStorage.getItem(storeKey)||'{}')}catch{return {}}})();
+const state={mode:saved.mode==='specific'?'specific':'auto',matchId:String(saved.matchId||''),opacity:Number(saved.opacity??.92),glow:Number(saved.glow??.82),current:null,data:null};
+let previewKey='';
+
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove('show'),1500)}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function save(){localStorage.setItem(storeKey,JSON.stringify({mode:state.mode,matchId:state.matchId,opacity:state.opacity,glow:state.glow}))}
+function parseMatchId(v){v=String(v||'').trim();if(/^\d+$/.test(v))return v;const m=v.match(/vlr\.gg\/(\d+)/i);return m?m[1]:''}
+function teamLabel(t){return t?.code||t?.acronym||t?.name||'TBD'}
+function overlayUrl(preview=false){const u=new URL('/overlay',location.origin);if(state.mode==='specific'&&state.matchId)u.searchParams.set('matchId',state.matchId);u.searchParams.set('opacity',state.opacity.toFixed(2));u.searchParams.set('glow',state.glow.toFixed(2));if(preview)u.searchParams.set('preview','1');return u.toString()}
+function updateUrls(force=false){const url=overlayUrl(false);$('#overlayUrl').textContent=url;const purl=overlayUrl(true);const key=`${state.mode}|${state.matchId}`;if(force||key!==previewKey){previewKey=key;$('#preview').src=purl}else{$('#preview').contentWindow?.postMessage({type:'vlr-overlay-settings',opacity:state.opacity,glow:state.glow},'*')}}
+function setMode(mode){state.mode=mode;$('#modeAuto').classList.toggle('active',mode==='auto');$('#modeSpecific').classList.toggle('active',mode==='specific');$('#pinPanel').hidden=mode!=='specific';save();updateUrls(true)}
+function statusText(s){if(!s)return '—';if(s.status==='running')return 'LIVE';if(s.status==='completed')return `${s.team1?.series??0}-${s.team2?.series??0}`;return s.etaText||'TBD'}
+function renderCurrent(s){state.current=s;const has=s?.team1&&s?.team2;$('#selectedLabel').textContent=has?`${teamLabel(s.team1)} vs ${teamLabel(s.team2)}`:'—';$('#currentTeams').textContent=has?`${teamLabel(s.team1)} vs ${teamLabel(s.team2)}`:'Sin match';$('#currentMeta').textContent=[s?.event,s?.stage].filter(Boolean).join(' · ')||'Esperando datos…';$('#currentValue').textContent=statusText(s);$('#currentBadge').textContent=s?.status==='completed'?'FINAL':(state.mode==='specific'?'MATCH ESPECÍFICA':'AUTOMÁTICO');const link=s?.matchPage||'';$('#openVlr').hidden=!link;$('#openVlr').href=link||'#'}
+function renderMatches(data){const box=$('#matches');box.innerHTML='';const list=[...(data?.matches||[])];if(!list.length&&data?.nearestUpcoming)list.push(data.nearestUpcoming);if(!list.length){box.innerHTML='<span style="color:#777;font-size:10px">No hay matches live o próximas disponibles.</span>';return}for(const m of list){const t1=m.teams?.[0]?.acronym||m.teams?.[0]?.name||'TBD',t2=m.teams?.[1]?.acronym||m.teams?.[1]?.name||'TBD';const b=document.createElement('button');b.className='match';const value=m.status==='running'?'LIVE':(m.status==='completed'?`${m.seriesScore?.[0]??0}-${m.seriesScore?.[1]??0}`:(m.etaText||'SOON'));b.innerHTML=`<span><strong>${esc(t1)} vs ${esc(t2)}</strong><div class="meta">${esc(m.event||'')}<br>${esc(m.stage||'')}</div></span><span class="eta"><small>${m.status==='upcoming'?'Empieza en':''}</small>${esc(value)}</span>`;b.onclick=()=>selectSpecific(String(m.id));box.appendChild(b)}}
+async function fetchJson(url,opts){const r=await fetch(url,opts);const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);return d}
+async function loadCurrent(){const qs=new URLSearchParams({opacity:state.opacity.toFixed(2),glow:state.glow.toFixed(2)});if(state.mode==='specific'&&state.matchId)qs.set('matchId',state.matchId);const s=await fetchJson(`/api/public/state?${qs}`);renderCurrent(s);return s}
+async function refreshUi({forcePreview=false}={}){try{const [data]=await Promise.all([fetchJson('/api/public/matches')]);state.data=data;$('#liveCount').textContent=data.liveCount??0;$('#sourceState').textContent=data.providerError?'AVISO':'OK';$('#sourcePill').classList.toggle('good',!data.providerError);renderMatches(data);await loadCurrent();$('#status').textContent=data.providerError?`VLR respondió con un aviso: ${data.providerError}`:'VLR conectado. Los cambios se reflejan inmediatamente en el preview y en OBS.';updateUrls(forcePreview)}catch(e){$('#status').textContent=`Error: ${e.message}`}}
+async function selectSpecific(id){state.matchId=String(id);state.mode='specific';setMode('specific');save();try{await loadCurrent();updateUrls(true);toast('Match cargada')}catch(e){toast(e.message)}}
+
+$('#modeAuto').onclick=()=>{state.mode='auto';state.matchId='';setMode('auto');refreshUi({forcePreview:true})};
+$('#modeSpecific').onclick=()=>setMode('specific');
+$('#loadMatch').onclick=async()=>{const id=parseMatchId($('#pinInput').value);if(!id)return toast('Pega una URL o Match ID válido');$('#loadMatch').disabled=true;try{await selectSpecific(id);$('#pinInput').value=''}catch(e){toast(e.message)}finally{$('#loadMatch').disabled=false}};
+$('#pinInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('#loadMatch').click()});
+$('#refresh').onclick=async()=>{try{$('#refresh').disabled=true;await fetchJson('/api/public/refresh',{method:'POST'});await refreshUi({forcePreview:true});toast('Datos actualizados')}finally{$('#refresh').disabled=false}};
+$('#copyOverlay').onclick=async()=>{await navigator.clipboard.writeText(overlayUrl(false));toast('URL copiada para OBS')};
+function slider(id,valueId,key,scale=100){const input=$(id);input.value=Math.round(state[key]*scale);$(valueId).textContent=`${Math.round(state[key]*100)}%`;input.oninput=()=>{state[key]=Number(input.value)/scale;$(valueId).textContent=`${Math.round(state[key]*100)}%`;save();updateUrls(false)}}
+slider('#opacityRange','#opacityValue','opacity',100);slider('#glowRange','#glowValue','glow',100);
+window.addEventListener('pointermove',e=>{document.documentElement.style.setProperty('--mx',`${e.clientX}px`);document.documentElement.style.setProperty('--my',`${e.clientY}px`)},{passive:true});
+setMode(state.mode);refreshUi({forcePreview:true});setInterval(()=>refreshUi(),10000);
+</script>
+</body>
+</html>

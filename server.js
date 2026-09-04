@@ -115,10 +115,23 @@ function cleanTeamLabel(value){
     .replace(/^(?:match|series)\s*[:·\-|]+\s*/i, "")
     .trim();
 }
+const teamCodeAliases = {
+  "LEVIATAN":"LEV","G2 ESPORTS":"G2","PAPER REX":"PRX","100 THIEVES":"100T",
+  "NONGSHIM REDFORCE":"NS","GLOBAL ESPORTS":"GE","VARREL":"VL","SENTINELS":"SEN",
+  "FNATIC":"FNC","GEN G":"GEN","GEN.G":"GEN","DRX":"DRX","TEAM LIQUID":"TL",
+  "LOUD":"LOUD","NRG":"NRG","KRU ESPORTS":"KRU","MIBR":"MIBR","T1":"T1",
+  "TEAM HERETICS":"TH","REX REGUM QEON":"RRQ","BOOM ESPORTS":"BOOM","BILIBILI GAMING":"BLG"
+};
+function normalizedTeamName(value){
+  return String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9. ]+/g," ").replace(/\s+/g," ").trim();
+}
 function safeCode(team){
   const raw=cleanTeamLabel(team?.acronym||"").trim().toUpperCase();
   if(raw) return raw.slice(0,4);
-  const name=cleanTeamLabel(team?.name||"TBD").replace(/[^A-Za-z0-9 ]/g," ").trim();
+  const original=cleanTeamLabel(team?.name||"TBD");
+  const alias=teamCodeAliases[normalizedTeamName(original)];
+  if(alias)return alias;
+  const name=original.replace(/[^A-Za-z0-9 ]/g," ").trim();
   const words=name.split(/\s+/).filter(Boolean);
   if(words.length>=2) return words.map(w=>w[0]).join("").slice(0,4).toUpperCase();
   return (name.slice(0,4)||"TBD").toUpperCase();
@@ -186,6 +199,44 @@ function composeRoomState(room){
     etaText:isUpcoming?(match.etaText||""):"",etaSeconds:isUpcoming?match.etaSeconds:null,etaCapturedAt:isUpcoming?match.etaCapturedAt:null,matchTime:isUpcoming?(match.matchTime||""):"",updatedAt:nowIso()
   };
 }
+
+function publicSettingsFromUrl(url){
+  const opacityRaw=Number(url.searchParams.get("opacity"));
+  const glowRaw=Number(url.searchParams.get("glow"));
+  return {
+    backgroundOpacity:Number.isFinite(opacityRaw)?Math.max(.35,Math.min(1,opacityRaw)):.92,
+    glowIntensity:Number.isFinite(glowRaw)?Math.max(0,Math.min(1.6,glowRaw)):.82
+  };
+}
+
+function composePublicState(match,settings=defaultSettings()){
+  if(!match){
+    return {connected:true,provider:USE_DEMO?"demo":"vlr",providerError,status:"waiting",message:"No live/upcoming match detected",ui:settings,public:true,updatedAt:nowIso()};
+  }
+  const t1=match.teams?.[0]||{name:"TBD"};
+  const t2=match.teams?.[1]||{name:"TBD"};
+  const isUpcoming=match.status==="upcoming";
+  return {
+    connected:true,provider:USE_DEMO?"demo":"vlr",providerError,status:match.status||"running",public:true,
+    matchId:String(match.id),matchPage:match.matchPage||"",bestOf:match.bestOf||null,event:match.event||"VALORANT",stage:match.stage||"",
+    mapName:match.mapName||"",eventLogo:match.eventLogo||"",ui:settings,
+    team1:{id:t1.id,name:t1.name,code:safeCode(t1),logo:t1.logo||"",color:colorFor(t1),series:isUpcoming?0:Number(match.seriesScore?.[0]??0),rounds:isUpcoming?null:(match.roundScore?.[0]??null)},
+    team2:{id:t2.id,name:t2.name,code:safeCode(t2),logo:t2.logo||"",color:colorFor(t2),series:isUpcoming?0:Number(match.seriesScore?.[1]??0),rounds:isUpcoming?null:(match.roundScore?.[1]??null)},
+    etaText:isUpcoming?(match.etaText||""):"",etaSeconds:isUpcoming?match.etaSeconds:null,etaCapturedAt:isUpcoming?match.etaCapturedAt:null,matchTime:isUpcoming?(match.matchTime||""):"",updatedAt:nowIso(),sourceDebug:match.sourceDebug||null
+  };
+}
+
+async function resolvePublicMatch(matchId){
+  const id=String(matchId||"").trim();
+  if(id){
+    const live=matches.find(m=>String(m.id)===id);
+    if(live)return live;
+    if(USE_DEMO)return matches.find(m=>String(m.id)===id)||null;
+    try{return await getPinnedMatch(id,vlrApiBase)}catch{return null}
+  }
+  return matches[0]||nearestUpcoming||null;
+}
+
 function clientsFor(roomId){ if(!roomClients.has(roomId))roomClients.set(roomId,new Set());return roomClients.get(roomId) }
 function broadcastRoom(room){
   const payload=`event: state\ndata: ${JSON.stringify(composeRoomState(room))}\n\n`;
@@ -254,7 +305,7 @@ function publicRoom(room,origin){
 }
 
 async function proxyImage(res,imageUrl){
-  try{const upstream=await fetch(imageUrl,{headers:{"User-Agent":"VLROverlayForVCTMatches/4.10"}});if(!upstream.ok)return text(res,upstream.status,"Unable to load image");const contentType=upstream.headers.get("content-type")||"image/png";const buffer=Buffer.from(await upstream.arrayBuffer());res.writeHead(200,{"Content-Type":contentType,"Content-Length":buffer.length,"Cache-Control":"public, max-age=900","Access-Control-Allow-Origin":"*"});res.end(buffer)}catch{text(res,500,"Image proxy error")}
+  try{const upstream=await fetch(imageUrl,{headers:{"User-Agent":"VLROverlayForVCTMatches/5.0"}});if(!upstream.ok)return text(res,upstream.status,"Unable to load image");const contentType=upstream.headers.get("content-type")||"image/png";const buffer=Buffer.from(await upstream.arrayBuffer());res.writeHead(200,{"Content-Type":contentType,"Content-Length":buffer.length,"Cache-Control":"public, max-age=900","Access-Control-Allow-Origin":"*"});res.end(buffer)}catch{text(res,500,"Image proxy error")}
 }
 
 function routeRoomApi(req,res,url,parts){
@@ -397,7 +448,7 @@ function routeRoomApi(req,res,url,parts){
 const server=http.createServer((req,res)=>{
   const url=new URL(req.url,`http://${req.headers.host||"localhost"}`); const parts=url.pathname.split("/").filter(Boolean);
   if(req.method==="OPTIONS"){res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type,X-Admin-Key","Access-Control-Allow-Methods":"GET,POST,OPTIONS"});return res.end()}
-  if(url.pathname==="/health")return json(res,200,{ok:true,version:"4.2.0",rooms:rooms.size,live:matches.length,providerError});
+  if(url.pathname==="/health")return json(res,200,{ok:true,version:"5.0.0",rooms:rooms.size,live:matches.length,providerError});
   if(req.method==="GET"&&url.pathname==="/api/config")return json(res,200,{
     provider:USE_DEMO?"demo":"vlr",
     providerError,
@@ -405,6 +456,20 @@ const server=http.createServer((req,res)=>{
     activeBridge,
     obs:OBS_RECOMMENDED
   });
+  if(req.method==="GET"&&url.pathname==="/api/public/matches")return json(res,200,{
+    provider:USE_DEMO?"demo":"vlr",providerError,liveCount:matches.length,nearestUpcoming,
+    autoMatch:matches[0]||nearestUpcoming||null,matches:matches.map(m=>({...m,priority:priorityScore(m)})),obs:OBS_RECOMMENDED
+  });
+  if(req.method==="GET"&&url.pathname==="/api/public/state"){
+    const raw=url.searchParams.get("matchId")||url.searchParams.get("match")||"";
+    const id=raw?parseVlrMatchId(raw)||String(raw).trim():"";
+    const settings=publicSettingsFromUrl(url);
+    return resolvePublicMatch(id).then(match=>{
+      if(id&&!match)return json(res,404,{error:"No pude encontrar esa match en VLR.",matchId:id});
+      return json(res,200,composePublicState(match,settings));
+    }).catch(err=>json(res,500,{error:String(err?.message||err)}));
+  }
+  if(req.method==="POST"&&url.pathname==="/api/public/refresh")return refreshMatches().finally(()=>json(res,200,{ok:true,providerError}));
   if(req.method==="POST"&&url.pathname==="/api/rooms"){
     if(rooms.size>=MAX_ROOMS) return json(res,429,{error:"Room limit reached"});
     return readJsonBody(req).then(body=>{let id=roomId();while(rooms.has(id))id=roomId();const room=normalizeRoom({id,adminKey:adminKey(),name:body.name||"My Overlay"});rooms.set(id,room);saveRooms();const origin=requestOrigin(req);json(res,201,{ok:true,room:publicRoom(room,origin)})}).catch(err=>json(res,400,{error:err.message}));
@@ -417,9 +482,9 @@ const server=http.createServer((req,res)=>{
     res.writeHead(200,{"Content-Type":"text/event-stream","Cache-Control":"no-cache, no-transform","Connection":"keep-alive","Access-Control-Allow-Origin":"*"});
     res.write(`event: state\ndata: ${JSON.stringify(composeRoomState(room))}\n\n`);const set=clientsFor(room.id);set.add(res);req.on("close",()=>set.delete(res));return;
   }
-  if(url.pathname==="/"||url.pathname==="/create")return serveFile(res,"landing.html","text/html; charset=utf-8");
+  if(url.pathname==="/"||url.pathname==="/create"||url.pathname==="/studio")return serveFile(res,"studio-public.html","text/html; charset=utf-8");
   if(parts[0]==="admin"&&parts[1])return serveFile(res,"admin-hosted.html","text/html; charset=utf-8");
-  if(parts[0]==="overlay"&&parts[1])return serveFile(res,"overlay-compact.html","text/html; charset=utf-8");
+  if(url.pathname==="/overlay"||(parts[0]==="overlay"&&parts[1]))return serveFile(res,"overlay-compact.html","text/html; charset=utf-8");
   text(res,404,"Not found");
 });
 
@@ -429,7 +494,7 @@ setInterval(refreshMatches,POLL_MS).unref();
 setInterval(pruneRooms,6*60*60*1000).unref();
 
 server.listen(PORT,"0.0.0.0",()=>{
-  console.log("VLR Overlay for VCT Matches v4.10");
+  console.log("VLR Overlay for VCT Matches v5.0");
   console.log(`Web: http://localhost:${PORT}/`);
   console.log(`Rooms: ${rooms.size}`);
   console.log(`Polling: ${POLL_MS/1000}s`);
