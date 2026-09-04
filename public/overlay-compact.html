@@ -953,10 +953,36 @@ async function extractAccentFromImage(url) {
   accentCache.set(url, color);
   return color;
 }
+function resolveEventAccentPreset(s) {
+  const eventText = `${s?.event || ""} ${s?.stage || ""}`.toLowerCase();
+
+  const presets = [
+    { match: /(game\s*changers|gc)/i, color: "rgb(236, 168, 40)" },
+    { match: /(emea)/i, color: "rgb(193, 255, 62)" },
+    { match: /(china|evolution\s*series|cn)/i, color: "rgb(255, 70, 85)" },
+    { match: /(pacific)/i, color: "rgb(24, 214, 234)" },
+    { match: /(americas)/i, color: "rgb(255, 112, 36)" },
+    { match: /(masters)/i, color: "rgb(103, 230, 195)" },
+    { match: /(champions)/i, color: "rgb(255, 202, 84)" },
+    { match: /(challengers|vcl|ascension)/i, color: "rgb(144, 114, 255)" }
+  ];
+
+  for (const preset of presets) {
+    if (preset.match.test(eventText)) return preset.color;
+  }
+  return "";
+}
+
 async function applyEventAccent(s) {
   const opacity = Number(s?.ui?.backgroundOpacity ?? .92);
   el("overlay").style.setProperty("--overlay-opacity", opacity.toFixed(2));
   applyGlowStrength(s?.ui?.glowIntensity ?? .82);
+
+  const presetColor = resolveEventAccentPreset(s);
+  if (presetColor) {
+    setAccent(presetColor);
+    return;
+  }
 
   if (s?.eventLogo) {
     try {

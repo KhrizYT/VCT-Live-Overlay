@@ -98,7 +98,7 @@ async function getJson(url, timeoutMs = 12000) {
     const res = await fetch(url, {
       headers: {
         "Accept": "application/json",
-        "User-Agent": "VLROverlayForVCTMatches/4.7"
+        "User-Agent": "VLROverlayForVCTMatches/4.8"
       },
       signal: ctrl.signal,
       cache: "no-store"
