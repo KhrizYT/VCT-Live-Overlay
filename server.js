@@ -109,10 +109,16 @@ function readJsonBody(req){
   return new Promise((resolve,reject)=>{let raw="";req.on("data",c=>{raw+=c;if(raw.length>65536)reject(new Error("Body too large"))});req.on("end",()=>{if(!raw)return resolve({});try{resolve(JSON.parse(raw))}catch{reject(new Error("Invalid JSON"))}});req.on("error",reject)});
 }
 
+function cleanTeamLabel(value){
+  return String(value||"")
+    .replace(/^(?:next|upcoming|live|final|featured)\s*[:·\-|]+\s*/i, "")
+    .replace(/^(?:match|series)\s*[:·\-|]+\s*/i, "")
+    .trim();
+}
 function safeCode(team){
-  const raw=String(team?.acronym||"").trim().toUpperCase();
+  const raw=cleanTeamLabel(team?.acronym||"").trim().toUpperCase();
   if(raw) return raw.slice(0,4);
-  const name=String(team?.name||"TBD").replace(/[^A-Za-z0-9 ]/g," ").trim();
+  const name=cleanTeamLabel(team?.name||"TBD").replace(/[^A-Za-z0-9 ]/g," ").trim();
   const words=name.split(/\s+/).filter(Boolean);
   if(words.length>=2) return words.map(w=>w[0]).join("").slice(0,4).toUpperCase();
   return (name.slice(0,4)||"TBD").toUpperCase();
@@ -248,7 +254,7 @@ function publicRoom(room,origin){
 }
 
 async function proxyImage(res,imageUrl){
-  try{const upstream=await fetch(imageUrl,{headers:{"User-Agent":"VLROverlayForVCTMatches/4.3"}});if(!upstream.ok)return text(res,upstream.status,"Unable to load image");const contentType=upstream.headers.get("content-type")||"image/png";const buffer=Buffer.from(await upstream.arrayBuffer());res.writeHead(200,{"Content-Type":contentType,"Content-Length":buffer.length,"Cache-Control":"public, max-age=900","Access-Control-Allow-Origin":"*"});res.end(buffer)}catch{text(res,500,"Image proxy error")}
+  try{const upstream=await fetch(imageUrl,{headers:{"User-Agent":"VLROverlayForVCTMatches/4.4"}});if(!upstream.ok)return text(res,upstream.status,"Unable to load image");const contentType=upstream.headers.get("content-type")||"image/png";const buffer=Buffer.from(await upstream.arrayBuffer());res.writeHead(200,{"Content-Type":contentType,"Content-Length":buffer.length,"Cache-Control":"public, max-age=900","Access-Control-Allow-Origin":"*"});res.end(buffer)}catch{text(res,500,"Image proxy error")}
 }
 
 function routeRoomApi(req,res,url,parts){
@@ -423,7 +429,7 @@ setInterval(refreshMatches,POLL_MS).unref();
 setInterval(pruneRooms,6*60*60*1000).unref();
 
 server.listen(PORT,"0.0.0.0",()=>{
-  console.log("VLR Overlay for VCT Matches v4.3");
+  console.log("VLR Overlay for VCT Matches v4.4");
   console.log(`Web: http://localhost:${PORT}/`);
   console.log(`Rooms: ${rooms.size}`);
   console.log(`Polling: ${POLL_MS/1000}s`);

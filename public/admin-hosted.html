@@ -46,11 +46,12 @@ body::before{
   mask-image:linear-gradient(to bottom,rgba(0,0,0,.65),transparent 72%);
 }
 a{color:inherit;text-decoration:none}
+.cursor-aura{position:fixed;left:0;top:0;width:400px;height:400px;border-radius:50%;pointer-events:none;z-index:0;opacity:.92;transform:translate3d(calc(var(--mx,50vw) - 50%),calc(var(--my,50vh) - 50%),0);background:radial-gradient(circle,rgba(121,131,245,.20) 0%,rgba(88,101,242,.12) 28%,rgba(255,70,85,.07) 56%,transparent 74%);filter:blur(18px);transition:opacity .2s ease} .tilt-card{transform-style:preserve-3d;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease} .tilt-card::before{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(circle at var(--sx,50%) var(--sy,50%),rgba(255,255,255,.09),transparent 42%);opacity:0;transition:opacity .22s ease;pointer-events:none;z-index:0} .tilt-card:hover::before{opacity:1}.tilt-card:hover{border-color:rgba(121,131,245,.20);box-shadow:0 22px 58px rgba(0,0,0,.72),0 0 0 1px rgba(121,131,245,.05),0 0 30px rgba(88,101,242,.08)}
 button,input{font:inherit}
 button{user-select:none}
-.app{width:min(1480px,calc(100% - 28px));margin:14px auto 38px;display:grid;grid-template-columns:206px minmax(0,1fr);gap:14px;align-items:start}
+.app{position:relative;z-index:1;width:min(1480px,calc(100% - 28px));margin:14px auto 38px;display:grid;grid-template-columns:206px minmax(0,1fr);gap:14px;align-items:start}
 .glass{
-  background:var(--surface);backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);
+  background:var(--surface);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
   border:1px solid var(--line);box-shadow:0 18px 48px var(--shadow),inset 0 1px rgba(255,255,255,.025)
 }
 .sidebar{
@@ -106,8 +107,9 @@ input[type=text]{width:100%;border:1px solid var(--line);background:rgba(0,0,0,.
 </style>
 </head>
 <body>
+<div class="cursor-aura" aria-hidden="true"></div>
 <div class="app">
-  <aside class="sidebar glass" aria-label="Navegación">
+  <aside class="sidebar glass tilt-card" aria-label="Navegación" data-tilt>
     <div class="brand">
       <div class="brand-mark"><span>VLR</span></div>
       <div class="brand-copy"><b>VLR Overlay</b><small>for VCT Matches</small></div>
@@ -130,7 +132,7 @@ input[type=text]{width:100%;border:1px solid var(--line);background:rgba(0,0,0,.
   </aside>
 
   <div class="content">
-    <header class="hero glass">
+    <header class="hero glass tilt-card" data-tilt>
       <div class="hero-top">
         <div>
           <div class="eyebrow"><span class="dot"></span>VCT / VLR · OBS Overlay</div>
@@ -153,7 +155,7 @@ input[type=text]{width:100%;border:1px solid var(--line);background:rgba(0,0,0,.
     <div class="status" id="status">Conectando con VLR…</div>
 
     <div class="grid">
-      <section class="card glass" id="control">
+      <section class="card glass tilt-card" id="control" data-tilt>
         <div class="section-head">
           <div class="section-copy"><h2>Qué quieres mostrar</h2><p>Automático o una match específica de VLR.</p></div>
         </div>
@@ -187,7 +189,7 @@ input[type=text]{width:100%;border:1px solid var(--line);background:rgba(0,0,0,.
         <div id="matches" class="matches"></div>
       </section>
 
-      <section class="card glass" id="obs">
+      <section class="card glass tilt-card" id="obs" data-tilt>
         <div class="section-head">
           <div class="section-copy"><h2>Tu overlay</h2><p>Ajustes visuales y enlaces de OBS.</p></div>
         </div>
@@ -229,7 +231,7 @@ input[type=text]{width:100%;border:1px solid var(--line);background:rgba(0,0,0,.
       </section>
     </div>
 
-    <section class="preview-shell glass" id="preview-section">
+    <section class="preview-shell glass tilt-card" id="preview-section" data-tilt>
       <div class="preview-label"><span>Así se verá en OBS · fondo transparente</span><span>500 × 160</span></div>
       <div class="preview"><iframe id="preview" scrolling="no"></iframe></div>
     </section>
@@ -244,6 +246,38 @@ let key=new URLSearchParams(location.search).get('key')||'';
 let ot,gt,currentObs={width:500,height:160,fps:30};
 let currentSourceMode='automatic';
 let currentPinnedMatch=null;
+
+const aura=document.querySelector('.cursor-aura');
+const tiltCards=[...document.querySelectorAll('[data-tilt]')];
+
+function initPointerFx(){
+  const setPointer=(x,y)=>{
+    document.documentElement.style.setProperty('--mx', `${x}px`);
+    document.documentElement.style.setProperty('--my', `${y}px`);
+  };
+  window.addEventListener('pointermove',e=>setPointer(e.clientX,e.clientY),{passive:true});
+  window.addEventListener('pointerdown',()=>{ if(aura) aura.style.opacity='.98'; });
+  window.addEventListener('pointerup',()=>{ if(aura) aura.style.opacity='.92'; });
+  setPointer(window.innerWidth*0.55, window.innerHeight*0.22);
+
+  tiltCards.forEach(card=>{
+    const reset=()=>{card.style.transform='perspective(1200px) rotateX(0deg) rotateY(0deg) translateY(0)';card.style.setProperty('--sx','50%');card.style.setProperty('--sy','50%');};
+    card.addEventListener('pointermove',e=>{
+      const rect=card.getBoundingClientRect();
+      const px=(e.clientX-rect.left)/rect.width;
+      const py=(e.clientY-rect.top)/rect.height;
+      const rx=(0.5-py)*7;
+      const ry=(px-0.5)*9;
+      card.style.transform=`perspective(1200px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) translateY(-2px)`;
+      card.style.setProperty('--sx', `${(px*100).toFixed(1)}%`);
+      card.style.setProperty('--sy', `${(py*100).toFixed(1)}%`);
+    },{passive:true});
+    card.addEventListener('pointerleave', reset);
+    reset();
+  });
+}
+
+initPointerFx();
 
 const api=async(path,opts={})=>{
   const r=await fetch(`/api/rooms/${roomId}/${path}`,{
@@ -354,7 +388,7 @@ function renderMatches(d){
     if(u?.teams?.length>=2){
       box.innerHTML=`<div class="match">
         <span>
-          <span class="teams">NEXT · ${esc(u.teams[0].acronym||u.teams[0].name)} vs ${esc(u.teams[1].acronym||u.teams[1].name)}</span>
+          <span class="meta"><span class="pill" style="display:inline-flex;margin-bottom:8px;border-color:rgba(121,131,245,.22);color:#c9cdff;background:rgba(88,101,242,.08)">Próximo partido</span></span><span class="teams">${esc(u.teams[0].acronym||u.teams[0].name)} vs ${esc(u.teams[1].acronym||u.teams[1].name)}</span>
           <span class="meta">${esc(u.event)}<br>${esc(u.stage)}</span>
         </span>
         <span class="score"><span class="eta-label">Empieza en</span>${esc(u.etaText||'SOON')}</span>

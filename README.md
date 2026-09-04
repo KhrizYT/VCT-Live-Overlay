@@ -1,7 +1,7 @@
-# VLR Overlay for VCT Matches · v4.3
+# VLR Overlay for VCT Matches · v4.4
 
 > Nombre del proyecto actualizado a **VLR Overlay for VCT Matches**.
-> v4.3 renueva Landing/Admin con el estilo glass limpio de KZTTS y añade un tratamiento especial al logo de **100 Thieves** para que sus trazos oscuros se vean blancos mientras conserva el rojo sobre fondos oscuros.
+> v4.4 renueva Landing/Admin con el estilo glass limpio de KZTTS y añade un tratamiento especial al logo de **100 Thieves** para que sus trazos oscuros se vean blancos mientras conserva el rojo sobre fondos oscuros.
 
 Esta versión conserva el comportamiento visual/live de v3.0.4, pero cambia la distribución:
 **el usuario de OBS no instala nada**.

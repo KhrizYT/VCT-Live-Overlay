@@ -40,6 +40,21 @@ function normalize(value) {
     .trim();
 }
 
+function sanitizeTeamText(value) {
+  let text = String(value || "").trim();
+  if (!text) return "";
+
+  const patterns = [
+    /^(?:next|upcoming|live|final|featured)\s*[:·\-|]+\s*/i,
+    /^(?:match|series)\s*[:·\-|]+\s*/i,
+    /^\[(?:next|live|final)\]\s*/i
+  ];
+
+  for (const pattern of patterns) text = text.replace(pattern, "").trim();
+  text = text.replace(/\s{2,}/g, " ");
+  return text;
+}
+
 function similarity(a, b) {
   const A = normalize(a);
   const B = normalize(b);
@@ -83,7 +98,7 @@ async function getJson(url, timeoutMs = 12000) {
     const res = await fetch(url, {
       headers: {
         "Accept": "application/json",
-        "User-Agent": "VLROverlayForVCTMatches/4.3"
+        "User-Agent": "VLROverlayForVCTMatches/4.4"
       },
       signal: ctrl.signal,
       cache: "no-store"
@@ -232,12 +247,12 @@ async function enrichTeam(liveName, liveLogo, detailTeam) {
   const profile = detailTeam?.id ? await getLocalTeam(detailTeam.id) : null;
 
   // Exact VLR team profile is authoritative for tag/logo.
-  const tag = String(profile?.tag || "").trim().toUpperCase();
+  const tag = sanitizeTeamText(profile?.tag || "").toUpperCase();
 
   return {
     id: detailTeam?.id || profile?.id || null,
-    name: profile?.name || detailTeam?.name || liveName || "TBD",
-    acronym: tag || "",
+    name: sanitizeTeamText(profile?.name || detailTeam?.name || liveName || "TBD") || "TBD",
+    acronym: sanitizeTeamText(tag || ""),
     logo: absUrl(profile?.logo || detailTeam?.logo || liveLogo || ""),
     metadataResolved: Boolean(profile?.tag && (profile?.logo || detailTeam?.logo || liveLogo))
   };
