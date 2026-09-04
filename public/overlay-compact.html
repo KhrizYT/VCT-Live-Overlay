@@ -197,6 +197,10 @@
   .logo img.brand-100t{
     filter:url(#brand100t) drop-shadow(0 0 7px rgba(255,255,255,.14)) drop-shadow(0 0 7px rgba(255,70,85,.10));
   }
+  .logo img.brand-force-light,
+  .announce-logo img.brand-force-light{
+    filter:invert(1) brightness(2.2) grayscale(1) drop-shadow(0 0 8px rgba(255,255,255,.16));
+  }
   .fallback{
     width:32px;height:32px;display:grid;place-items:center;
     border:1px solid rgba(255,255,255,.18);border-radius:10px;
@@ -577,6 +581,7 @@ const roomId = pathParts[0] === "overlay" ? pathParts[1] : null;
 
 let previous = null;
 const accentCache = new Map();
+const logoStyleCache = new Map();
 
 const ROUND_WAVE_MS = 1000;
 const MAP_ANNOUNCE_MS = 4200;
@@ -596,11 +601,88 @@ function logoHtml(team) {
       : `/api/image-proxy?url=${encodeURIComponent(raw)}`;
     const teamCode = String(team.code || "").trim().toUpperCase();
     const teamName = String(team.name || "").trim();
-    const brandClass = teamCode === "100T" || /100\s*thieves/i.test(teamName) ? " brand-100t" : "";
-    return `<img class="team-logo${brandClass}" src="${src.replace(/"/g,"&quot;")}" alt="" referrerpolicy="no-referrer">`;
+    const is100T = teamCode === "100T" || /100\s*thieves/i.test(teamName);
+    const baseClass = is100T ? " brand-100t" : "";
+    const teamKey = `${teamCode}|${teamName}`.replace(/"/g, "&quot;");
+    return `<img class="team-logo${baseClass}" data-team-code="${teamCode.replace(/"/g,"&quot;")}" data-team-name="${teamName.replace(/"/g,"&quot;")}" data-team-key="${teamKey}" src="${src.replace(/"/g,"&quot;")}" alt="" referrerpolicy="no-referrer">`;
   }
   return `<div class="fallback">${team.code}</div>`;
 }
+function applyLogoMode(img, mode) {
+  img.classList.remove("brand-force-light");
+  if (mode === "force-light") img.classList.add("brand-force-light");
+}
+
+function inspectLogoTone(src) {
+  return new Promise(resolve => {
+    if (!src) return resolve("normal");
+    const probe = new Image();
+    probe.crossOrigin = "anonymous";
+    probe.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = 44;
+        canvas.height = 44;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(probe, 0, 0, canvas.width, canvas.height);
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+        let opaque = 0, dark = 0, light = 0, colorful = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const a = data[i + 3];
+          if (a < 70) continue;
+          opaque++;
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          const max = Math.max(r, g, b), min = Math.min(r, g, b);
+          const lum = (r + g + b) / 3;
+          const sat = max === 0 ? 0 : (max - min) / max;
+          if (lum < 72) dark++;
+          if (lum > 196) light++;
+          if (sat > 0.22) colorful++;
+        }
+
+        if (!opaque) return resolve("normal");
+        const darkRatio = dark / opaque;
+        const lightRatio = light / opaque;
+        const colorfulRatio = colorful / opaque;
+        const shouldForceLight = darkRatio > 0.58 && colorfulRatio < 0.11 && lightRatio < 0.18;
+        resolve(shouldForceLight ? "force-light" : "normal");
+      } catch {
+        resolve("normal");
+      }
+    };
+    probe.onerror = () => resolve("normal");
+    probe.src = src;
+  });
+}
+
+async function enhanceLogoNode(img) {
+  if (!img || img.dataset.logoEnhanced === "1") return;
+  img.dataset.logoEnhanced = "1";
+
+  if (img.classList.contains("brand-100t")) return;
+
+  const cached = logoStyleCache.get(img.src);
+  if (cached) {
+    applyLogoMode(img, cached);
+    return;
+  }
+
+  const teamCode = String(img.dataset.teamCode || "").trim().toUpperCase();
+  const teamName = String(img.dataset.teamName || "").trim();
+  const hardForceLight = teamCode === "VL" || /varrel/i.test(teamName);
+  const mode = hardForceLight ? "force-light" : await inspectLogoTone(img.src);
+  logoStyleCache.set(img.src, mode);
+  applyLogoMode(img, mode);
+}
+
+function refreshRenderedLogos() {
+  document.querySelectorAll('img.team-logo').forEach(img => {
+    if (img.complete) enhanceLogoNode(img);
+    else img.addEventListener('load', () => enhanceLogoNode(img), { once: true });
+  });
+}
+
 function simplifyEvent(text) {
   const t = String(text || "");
   if (t.toLowerCase().includes("game changers")) return "Game Changers";
@@ -676,6 +758,7 @@ function showAnnouncement(team, title, subHtml, durationMs) {
 
   card.style.setProperty("--announce-color", team.color || "#ff4655");
   el("announceLogo").innerHTML = logoHtml(team);
+  refreshRenderedLogos();
   el("announceCode").textContent = team.code;
   el("announceTitle").textContent = title;
   el("announceSub").innerHTML = subHtml;
@@ -857,6 +940,7 @@ async function render(s) {
 
     el("logo1").innerHTML = logoHtml(s.team1);
     el("logo2").innerHTML = logoHtml(s.team2);
+    refreshRenderedLogos();
     el("code1").textContent = s.team1.code;
     el("code2").textContent = s.team2.code;
 
@@ -888,6 +972,7 @@ async function render(s) {
 
   el("logo1").innerHTML = logoHtml(s.team1);
   el("logo2").innerHTML = logoHtml(s.team2);
+  refreshRenderedLogos();
   el("code1").textContent = s.team1.code;
   el("code2").textContent = s.team2.code;
   el("series1").textContent = s.team1.series ?? 0;

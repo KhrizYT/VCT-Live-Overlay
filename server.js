@@ -36,7 +36,7 @@ const teamColors = {
   "PRX":"#ff4f87","SEN":"#d62839","G2":"#e7e7ea","FNC":"#ff5a1f",
   "KRU":"#ff4fa3","LEV":"#42b7ff","NRG":"#ff5b47","LOUD":"#67d14f",
   "MIBR":"#f0b24a","100T":"#d8393e","GEN":"#c8a34e","T1":"#e5313d",
-  "DRX":"#6c5cff","GE":"#f38b27","NS":"#e64242","TL":"#7ea7ff","KRX":"#53e4ef"
+  "DRX":"#6c5cff","GE":"#2f7cff","VL":"#1f87ff","NS":"#e64242","TL":"#7ea7ff","KRX":"#53e4ef"
 };
 
 function nowIso(){ return new Date().toISOString(); }
@@ -254,7 +254,7 @@ function publicRoom(room,origin){
 }
 
 async function proxyImage(res,imageUrl){
-  try{const upstream=await fetch(imageUrl,{headers:{"User-Agent":"VLROverlayForVCTMatches/4.5"}});if(!upstream.ok)return text(res,upstream.status,"Unable to load image");const contentType=upstream.headers.get("content-type")||"image/png";const buffer=Buffer.from(await upstream.arrayBuffer());res.writeHead(200,{"Content-Type":contentType,"Content-Length":buffer.length,"Cache-Control":"public, max-age=900","Access-Control-Allow-Origin":"*"});res.end(buffer)}catch{text(res,500,"Image proxy error")}
+  try{const upstream=await fetch(imageUrl,{headers:{"User-Agent":"VLROverlayForVCTMatches/4.6"}});if(!upstream.ok)return text(res,upstream.status,"Unable to load image");const contentType=upstream.headers.get("content-type")||"image/png";const buffer=Buffer.from(await upstream.arrayBuffer());res.writeHead(200,{"Content-Type":contentType,"Content-Length":buffer.length,"Cache-Control":"public, max-age=900","Access-Control-Allow-Origin":"*"});res.end(buffer)}catch{text(res,500,"Image proxy error")}
 }
 
 function routeRoomApi(req,res,url,parts){
@@ -429,7 +429,7 @@ setInterval(refreshMatches,POLL_MS).unref();
 setInterval(pruneRooms,6*60*60*1000).unref();
 
 server.listen(PORT,"0.0.0.0",()=>{
-  console.log("VLR Overlay for VCT Matches v4.5");
+  console.log("VLR Overlay for VCT Matches v4.6");
   console.log(`Web: http://localhost:${PORT}/`);
   console.log(`Rooms: ${rooms.size}`);
   console.log(`Polling: ${POLL_MS/1000}s`);
