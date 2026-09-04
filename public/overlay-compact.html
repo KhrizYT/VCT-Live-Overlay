@@ -6,6 +6,7 @@
 <title>VLR Overlay for VCT Matches</title>
 <style>
   *{box-sizing:border-box}
+  [hidden]{display:none!important}
   html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent!important}
   body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#fff}
   html.preview-mode,html.preview-mode body{
@@ -409,15 +410,18 @@
     background:var(--event-accent);
     box-shadow:0 0 10px rgba(var(--event-accent-rgb),.95);
   }
-  .main.upcoming-mode .series{
+  .main.upcoming-mode .series,
+  .main.completed-mode .series{
     display:none;
   }
-  .main.upcoming-mode .team.left{
+  .main.upcoming-mode .team.left,
+  .main.completed-mode .team.left{
     grid-template-columns:auto 34px;
     justify-content:center;
     column-gap:7px;
   }
-  .main.upcoming-mode .team.right{
+  .main.upcoming-mode .team.right,
+  .main.completed-mode .team.right{
     grid-template-columns:34px auto;
     justify-content:center;
     column-gap:7px;
@@ -1071,6 +1075,7 @@ async function render(s) {
   const usesStatusCenter = isUpcoming || isCompleted;
 
   el("main").classList.toggle("upcoming-mode", isUpcoming);
+  el("main").classList.toggle("completed-mode", isCompleted);
   el("statusBadge").classList.toggle("upcoming", usesStatusCenter);
   el("statusBadgeText").textContent = isUpcoming ? "NEXT" : (isCompleted ? "FINAL" : "LIVE");
   el("liveCenter").hidden = usesStatusCenter;
@@ -1096,7 +1101,7 @@ async function render(s) {
     } else {
       stopCountdown();
       el("upcomingKicker").textContent = "FINAL";
-      el("upcomingTime").textContent = `${s.team1.series ?? 0}-${s.team2.series ?? 0}`;
+      el("upcomingTime").textContent = `${s.team1.series ?? 0} – ${s.team2.series ?? 0}`;
     }
 
     hideAnnouncement();

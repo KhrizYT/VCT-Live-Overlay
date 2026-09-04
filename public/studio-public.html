@@ -83,8 +83,11 @@ button,input{font:inherit}button{border:1px solid var(--line);background:rgba(25
 <script>
 const $=s=>document.querySelector(s);
 const storeKey='vlr-public-studio-v1';
+function parseMatchIdFromQuery(v){v=String(v||'').trim();if(/^\d+$/.test(v))return v;const m=v.match(/vlr\.gg\/(\d+)/i);return m?m[1]:''}
 const saved=(()=>{try{return JSON.parse(localStorage.getItem(storeKey)||'{}')}catch{return {}}})();
-const state={mode:saved.mode==='specific'?'specific':'auto',matchId:String(saved.matchId||''),opacity:Number(saved.opacity??.92),glow:Number(saved.glow??.82),current:null,data:null};
+const initialParams=new URLSearchParams(location.search);
+const initialMatchId=parseMatchIdFromQuery(initialParams.get('matchId')||initialParams.get('match')||'');
+const state={mode:initialMatchId?'specific':'auto',matchId:initialMatchId,opacity:Number(saved.opacity??.92),glow:Number(saved.glow??.82),current:null,data:null};
 let previewKey='';
 
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove('show'),1500)}
@@ -101,7 +104,7 @@ function renderMatches(data){const box=$('#matches');box.innerHTML='';const list
 async function fetchJson(url,opts){const r=await fetch(url,opts);const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);return d}
 async function loadCurrent(){const qs=new URLSearchParams({opacity:state.opacity.toFixed(2),glow:state.glow.toFixed(2)});if(state.mode==='specific'&&state.matchId)qs.set('matchId',state.matchId);const s=await fetchJson(`/api/public/state?${qs}`);renderCurrent(s);return s}
 async function refreshUi({forcePreview=false}={}){try{const [data]=await Promise.all([fetchJson('/api/public/matches')]);state.data=data;$('#liveCount').textContent=data.liveCount??0;$('#sourceState').textContent=data.providerError?'AVISO':'OK';$('#sourcePill').classList.toggle('good',!data.providerError);renderMatches(data);await loadCurrent();$('#status').textContent=data.providerError?`VLR respondió con un aviso: ${data.providerError}`:'VLR conectado. Los cambios se reflejan inmediatamente en el preview y en OBS.';updateUrls(forcePreview)}catch(e){$('#status').textContent=`Error: ${e.message}`}}
-async function selectSpecific(id){state.matchId=String(id);state.mode='specific';setMode('specific');save();try{await loadCurrent();updateUrls(true);toast('Match cargada')}catch(e){toast(e.message)}}
+async function selectSpecific(id){state.matchId=String(id);state.mode='specific';setMode('specific');save();try{await loadCurrent();updateUrls(true);toast('Match cargada')}catch(e){state.matchId='';state.mode='auto';setMode('auto');save();await loadCurrent().catch(()=>{});updateUrls(true);toast(e.message)}}
 
 $('#modeAuto').onclick=()=>{state.mode='auto';state.matchId='';setMode('auto');refreshUi({forcePreview:true})};
 $('#modeSpecific').onclick=()=>setMode('specific');

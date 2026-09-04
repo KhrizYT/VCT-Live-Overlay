@@ -11,6 +11,7 @@ const detailCache = new Map();
 const eventLogoCache = new Map();
 const hostedDetailCache = new Map();
 const eventSearchCache = new Map();
+const resultLookupCache = new Map();
 let eventsCache = { at: 0, items: [] };
 let upcomingBridgeCache = { at: 0, preferred: "", value: null };
 let localUpcomingCache = { at: 0, items: [] };
@@ -23,6 +24,7 @@ function absUrl(value) {
   const s = String(value || "").trim();
   if (!s) return "";
   if (s.startsWith("//")) return `https:${s}`;
+  if (s.startsWith("/")) return `https://www.vlr.gg${s}`;
   return s;
 }
 
@@ -105,7 +107,7 @@ async function getJson(url, timeoutMs = 12000) {
     const res = await fetch(url, {
       headers: {
         "Accept": "application/json",
-        "User-Agent": "VLROverlayForVCTMatches/5.0"
+        "User-Agent": "VLROverlayForVCTMatches/5.1"
       },
       signal: ctrl.signal,
       cache: "no-store"
@@ -216,6 +218,81 @@ async function getEventLogoBySearch(bridge, eventName) {
 
   eventSearchCache.set(key, { at: Date.now(), logo: "" });
   return "";
+}
+
+
+async function findMatchInResults(matchId, preferredBridge = DEFAULT_BRIDGE) {
+  const id = String(matchId || "").trim();
+  if (!id) return null;
+
+  const cached = resultLookupCache.get(id);
+  if (cached && Date.now() - cached.at < 60 * 1000) return cached.value;
+
+  const candidates = [...new Set([normBase(preferredBridge), ...FALLBACK_BRIDGES.map(normBase)])];
+  for (const base of candidates) {
+    for (const path of [
+      "/v2/match?q=results&num_pages=4",
+      "/match?q=results&num_pages=4"
+    ]) {
+      try {
+        const payload = await getJson(`${base}${path}`, 18000);
+        const items = extractSegments(payload);
+        const item = items.find(seg => matchIdFromPage(seg?.match_page) === id);
+        if (item) {
+          const value = { item, base };
+          resultLookupCache.set(id, { at: Date.now(), value });
+          return value;
+        }
+      } catch {}
+    }
+  }
+
+  resultLookupCache.set(id, { at: Date.now(), value: null });
+  return null;
+}
+
+async function buildCompletedFromResultItem(item, bridgeBase, details = null) {
+  const matchId = matchIdFromPage(item?.match_page);
+  if (!matchId) return null;
+
+  const detail1 = details?.team1 || null;
+  const detail2 = details?.team2 || null;
+  const [team1, team2] = await Promise.all([
+    enrichTeam(item?.team1, item?.team1_logo || "", detail1),
+    enrichTeam(item?.team2, item?.team2_logo || "", detail2)
+  ]);
+
+  const event = String(item?.tournament_name || details?.event || "VALORANT").trim();
+  const stage = String(item?.round_info || details?.stage || "Final").trim();
+  const eventLogo =
+    absUrl(item?.tournament_icon || "") ||
+    pickDetailEventLogo(details) ||
+    await getEventLogo(bridgeBase, event);
+
+  return {
+    id: matchId,
+    status: "completed",
+    bestOf: parseBo(details?.format, null),
+    event,
+    stage,
+    mapName: "",
+    eventLogo,
+    matchPage: absUrl(item?.match_page || `https://www.vlr.gg/${matchId}`),
+    seriesScore: [toNum(item?.score1, 0), toNum(item?.score2, 0)],
+    roundScore: [null, null],
+    teams: [team1, team2],
+    etaText: "",
+    etaSeconds: null,
+    etaCapturedAt: Date.now(),
+    sourceDebug: {
+      pinned: true,
+      resultFeed: true,
+      resultBridge: bridgeBase,
+      localDetails: Boolean(details),
+      team1Profile: team1.metadataResolved,
+      team2Profile: team2.metadataResolved
+    }
+  };
 }
 
 async function getLiveScore(preferredBridge = DEFAULT_BRIDGE) {
@@ -650,7 +727,7 @@ async function getPinnedMatch(matchId, preferredBridge = DEFAULT_BRIDGE) {
   const id = parseVlrMatchId(matchId);
   if (!id) return null;
 
-  // Hosted V2 match/details works for completed matches as well as future/live ones.
+  // Exact match details are the first authority for LIVE/completed states.
   const hosted = await getHostedMatchDetail(id, preferredBridge);
   const hostedLocal = hosted?.detail ? hostedDetailToLocal(hosted.detail) : null;
   const hostedStatus = hostedLocal ? inferDetailStatus(hostedLocal) : "upcoming";
@@ -659,7 +736,18 @@ async function getPinnedMatch(matchId, preferredBridge = DEFAULT_BRIDGE) {
     return await buildExactMatchFromDetails(id, hostedLocal, hosted?.base || preferredBridge);
   }
 
-  // Prefer bridge upcoming for its human-friendly ETA, but merge exact metadata/logo.
+  // Results feed is a second authority and fixes cases where match/details is
+  // temporarily stale/unavailable but VLR already marks the match as final.
+  const resultHit = await findMatchInResults(id, preferredBridge);
+  if (resultHit?.item) {
+    return await buildCompletedFromResultItem(
+      resultHit.item,
+      resultHit.base || preferredBridge,
+      hostedLocal
+    );
+  }
+
+  // Future match: use the upcoming feed for its countdown.
   try {
     const upcoming = await getUpcomingFromBridge(preferredBridge);
     const item = upcoming.items.find(seg => matchIdFromPage(seg?.match_page) === id);
@@ -685,7 +773,14 @@ async function getPinnedMatch(matchId, preferredBridge = DEFAULT_BRIDGE) {
   }
 
   const details = await getLocalDetail(id);
-  if (details) return await buildExactMatchFromDetails(id, details, preferredBridge);
+  if (details) {
+    const status = inferDetailStatus(details);
+    if (status === "completed") {
+      const lateResult = await findMatchInResults(id, preferredBridge);
+      if (lateResult?.item) return await buildCompletedFromResultItem(lateResult.item, lateResult.base, details);
+    }
+    return await buildExactMatchFromDetails(id, details, preferredBridge);
+  }
   return null;
 }
 
