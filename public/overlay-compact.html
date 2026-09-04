@@ -931,58 +931,52 @@ async function extractAccentFromImage(url) {
   const img = await loadImage(proxyUrl);
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  canvas.width = 30;
-  canvas.height = 30;
+  canvas.width = 44;
+  canvas.height = 44;
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
   const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-  let best = null;
+  const bins = new Map();
   for (let i = 0; i < data.length; i += 4) {
     const a = data[i + 3];
-    if (a < 100) continue;
+    if (a < 90) continue;
+
     const r = data[i], g = data[i + 1], b = data[i + 2];
     const max = Math.max(r, g, b), min = Math.min(r, g, b);
     const sat = max === 0 ? 0 : (max - min) / max;
     const lum = (r + g + b) / 3;
-    if (lum < 35 || lum > 240) continue;
-    const score = sat * 2.2 + (lum / 255) * 0.12 + (max / 255) * 0.3;
-    if (!best || score > best.score) best = { r, g, b, score };
+
+    if (lum < 22 || lum > 245) continue;
+    if (sat < 0.14) continue;
+
+    const hue = rgbToHue(r, g, b);
+    const bucket = Math.round(hue / 16) * 16;
+    const weight = sat * 2.5 + (max / 255) * 0.25 + (1 - Math.abs(132 - lum) / 132) * 0.18;
+    const prev = bins.get(bucket) || { r: 0, g: 0, b: 0, w: 0 };
+    prev.r += r * weight;
+    prev.g += g * weight;
+    prev.b += b * weight;
+    prev.w += weight;
+    bins.set(bucket, prev);
   }
 
-  const color = best ? `rgb(${best.r}, ${best.g}, ${best.b})` : "rgb(95, 213, 232)";
-  accentCache.set(url, color);
-  return color;
-}
-function resolveEventAccentPreset(s) {
-  const eventText = `${s?.event || ""} ${s?.stage || ""}`.toLowerCase();
-
-  const presets = [
-    { match: /(game\s*changers|gc)/i, color: "rgb(236, 168, 40)" },
-    { match: /(emea)/i, color: "rgb(193, 255, 62)" },
-    { match: /(china|evolution\s*series|cn)/i, color: "rgb(255, 70, 85)" },
-    { match: /(pacific)/i, color: "rgb(24, 214, 234)" },
-    { match: /(americas)/i, color: "rgb(255, 112, 36)" },
-    { match: /(masters)/i, color: "rgb(103, 230, 195)" },
-    { match: /(champions)/i, color: "rgb(255, 202, 84)" },
-    { match: /(challengers|vcl|ascension)/i, color: "rgb(144, 114, 255)" }
-  ];
-
-  for (const preset of presets) {
-    if (preset.match.test(eventText)) return preset.color;
+  let out = "rgb(95, 213, 232)";
+  let best = null;
+  for (const stat of bins.values()) {
+    if (!best || stat.w > best.w) best = stat;
   }
-  return "";
-}
+  if (best && best.w > 0) {
+    const avg = brightenRgb({ r: best.r / best.w, g: best.g / best.w, b: best.b / best.w }, 82);
+    out = rgbToString(avg, out);
+  }
 
+  accentCache.set(url, out);
+  return out;
+}
 async function applyEventAccent(s) {
   const opacity = Number(s?.ui?.backgroundOpacity ?? .92);
   el("overlay").style.setProperty("--overlay-opacity", opacity.toFixed(2));
   applyGlowStrength(s?.ui?.glowIntensity ?? .82);
-
-  const presetColor = resolveEventAccentPreset(s);
-  if (presetColor) {
-    setAccent(presetColor);
-    return;
-  }
 
   if (s?.eventLogo) {
     try {
@@ -1081,6 +1075,8 @@ async function render(s) {
     refreshRenderedLogos();
     el("code1").textContent = s.team1.code;
     el("code2").textContent = s.team2.code;
+    el("series1").textContent = s.team1.series ?? 0;
+    el("series2").textContent = s.team2.series ?? 0;
 
     el("event").textContent = simplifyEvent(s.event || "Valorant");
     el("stageName").textContent = simplifyStage(s.stage || (isCompleted ? "Final" : "Upcoming"));
@@ -1092,8 +1088,8 @@ async function render(s) {
       startCountdown(s);
     } else {
       stopCountdown();
-      el("upcomingKicker").textContent = "SERIES";
-      el("upcomingTime").textContent = "FINAL";
+      el("upcomingKicker").textContent = "FINAL";
+      el("upcomingTime").textContent = `${s.team1.series ?? 0}-${s.team2.series ?? 0}`;
     }
 
     hideAnnouncement();

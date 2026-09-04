@@ -236,7 +236,7 @@ function renderSourceMode(data,info){
   $('#pinnedMeta').textContent=[m.event,m.stage].filter(Boolean).join(' · ');
 
   if(m.status==='running') $('#pinnedEta').textContent='LIVE';
-  else if(m.status==='completed') $('#pinnedEta').textContent='FINAL';
+  else if(m.status==='completed') $('#pinnedEta').textContent=`${m.seriesScore?.[0]??0}-${m.seriesScore?.[1]??0}`;
   else $('#pinnedEta').textContent=m.etaText||'SOON';
 }
 
