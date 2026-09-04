@@ -1,8 +1,8 @@
-# VLR Overlay for VCT Matches · v5.1
+# VLR Overlay for VCT Matches · v5.2
 
-> v5.1 corrige el modo LIVE del overlay (ya no se mezcla con STARTS IN), refuerza la detección de matches terminadas usando match/details + results, y mantiene el Studio público de una sola página sin rooms ni panel privado.
+> v5.2 corrige el modo LIVE del overlay (ya no se mezcla con STARTS IN), refuerza la detección de matches terminadas usando match/details + results, y mantiene el Studio público de una sola página sin rooms ni panel privado.
 
-## Cambios principales de v5.1
+## Cambios principales de v5.2
 - `/` abre directamente el Studio público.
 - El usuario elige Automático o pega cualquier Match ID/URL de VLR.
 - `/overlay?matchId=...&opacity=...&glow=...` funciona sin room ni clave.

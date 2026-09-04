@@ -5,6 +5,7 @@ const FALLBACK_BRIDGES = [
 ];
 
 const LOCAL_API = process.env.VLR_LOCAL_API || "http://127.0.0.1:3002/api";
+const PUBLIC_EXACT_API = String(process.env.VLR_PUBLIC_EXACT_API || "https://vlrgg.metehansenyer.tech/api").replace(/\/+$/, "");
 
 const profileCache = new Map();
 const detailCache = new Map();
@@ -12,6 +13,8 @@ const eventLogoCache = new Map();
 const hostedDetailCache = new Map();
 const eventSearchCache = new Map();
 const resultLookupCache = new Map();
+const publicExactMatchCache = new Map();
+const publicEventLogoCache = new Map();
 let eventsCache = { at: 0, items: [] };
 let upcomingBridgeCache = { at: 0, preferred: "", value: null };
 let localUpcomingCache = { at: 0, items: [] };
@@ -107,7 +110,7 @@ async function getJson(url, timeoutMs = 12000) {
     const res = await fetch(url, {
       headers: {
         "Accept": "application/json",
-        "User-Agent": "VLROverlayForVCTMatches/5.1"
+        "User-Agent": "VLROverlayForVCTMatches/5.2"
       },
       signal: ctrl.signal,
       cache: "no-store"
@@ -127,6 +130,129 @@ function unwrapV2Data(payload) {
   if (payload?.data?.data) return payload.data.data;
   if (payload?.data) return payload.data;
   return payload;
+}
+
+function unwrapPublicPayload(payload) {
+  if (!payload) return null;
+  if (payload?.success === true && payload?.data !== undefined) return payload.data;
+  if (payload?.status === "success" && payload?.data !== undefined) return payload.data;
+  return payload?.data ?? payload;
+}
+
+function publicStatus(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (/^(live|running|ongoing|in[_ -]?progress|playing)$/.test(raw)) return "running";
+  if (/^(completed|complete|finished|final|ended|concluded|result)$/.test(raw)) return "completed";
+  if (/^(upcoming|scheduled|pending|not[_ -]?started|future|tbd)$/.test(raw)) return "upcoming";
+  return raw;
+}
+
+function publicMatchToLocal(detail) {
+  if (!detail) return null;
+  const team1 = detail?.team1 || detail?.teams?.[0] || null;
+  const team2 = detail?.team2 || detail?.teams?.[1] || null;
+  const eventObj = detail?.event && typeof detail.event === "object" ? detail.event : null;
+  const eventName = typeof detail?.event === "string"
+    ? detail.event
+    : (eventObj?.name || detail?.tournament_name || detail?.tournament?.name || "");
+  const eventId = String(
+    detail?.eventId || detail?.event_id || eventObj?.id || detail?.tournamentId || detail?.tournament_id || detail?.tournament?.id || ""
+  ).trim();
+
+  return {
+    status: publicStatus(detail?.status || detail?.state || detail?.match_status || detail?.matchStatus),
+    event: eventName,
+    eventId,
+    eventLogo: absUrl(
+      detail?.eventLogo || detail?.event_logo || eventObj?.logo || eventObj?.logo_url ||
+      detail?.tournament_icon || detail?.tournament?.logo || detail?.tournament?.logo_url || ""
+    ),
+    stage: detail?.stage || detail?.round || detail?.round_info || eventObj?.series || detail?.series || "",
+    format: detail?.format || detail?.best_of || detail?.bestOf || "",
+    team1: team1 ? {
+      id: team1?.id || null,
+      name: team1?.name || detail?.team1_name || "TBD",
+      tag: team1?.tag || team1?.acronym || "",
+      logo: absUrl(team1?.logo || team1?.image || detail?.team1_logo || ""),
+      score: toNum(team1?.score ?? detail?.score_team1 ?? detail?.score1, 0)
+    } : (detail?.team1_name ? {
+      id: null, name: detail.team1_name, tag: "", logo: absUrl(detail?.team1_logo || ""), score: toNum(detail?.score_team1 ?? detail?.score1, 0)
+    } : null),
+    team2: team2 ? {
+      id: team2?.id || null,
+      name: team2?.name || detail?.team2_name || "TBD",
+      tag: team2?.tag || team2?.acronym || "",
+      logo: absUrl(team2?.logo || team2?.image || detail?.team2_logo || ""),
+      score: toNum(team2?.score ?? detail?.score_team2 ?? detail?.score2, 0)
+    } : (detail?.team2_name ? {
+      id: null, name: detail.team2_name, tag: "", logo: absUrl(detail?.team2_logo || ""), score: toNum(detail?.score_team2 ?? detail?.score2, 0)
+    } : null),
+    maps: Array.isArray(detail?.maps) ? detail.maps : []
+  };
+}
+
+async function getPublicExactMatch(matchId) {
+  const id = String(matchId || "").trim();
+  if (!id) return null;
+  const cached = publicExactMatchCache.get(id);
+  if (cached && Date.now() - cached.at < 45 * 1000) return cached.value;
+
+  try {
+    const payload = await getJson(`${PUBLIC_EXACT_API}/matches/${encodeURIComponent(id)}`, 16000);
+    const detail = unwrapPublicPayload(payload);
+    if (detail && (detail?.id || detail?.team1 || detail?.team1_name || detail?.teams)) {
+      const value = publicMatchToLocal(detail);
+      publicExactMatchCache.set(id, { at: Date.now(), value });
+      return value;
+    }
+  } catch {}
+
+  publicExactMatchCache.set(id, { at: Date.now(), value: null });
+  return null;
+}
+
+async function getPublicEventLogo(eventId, eventName) {
+  const key = `${String(eventId || "").trim()}|${normalize(eventName)}`;
+  const cached = publicEventLogoCache.get(key);
+  if (cached && Date.now() - cached.at < 30 * 60 * 1000) return cached.logo;
+
+  let id = String(eventId || "").trim();
+  let directLogo = "";
+
+  if (!id && eventName) {
+    try {
+      const payload = await getJson(`${PUBLIC_EXACT_API}/search?q=${encodeURIComponent(eventName)}&type=events`, 14000);
+      const raw = unwrapPublicPayload(payload);
+      const items = Array.isArray(raw)
+        ? raw
+        : (raw?.events || raw?.results?.events || raw?.results || []);
+      let best = null;
+      let bestScore = 0;
+      for (const ev of Array.isArray(items) ? items : []) {
+        const score = similarity(ev?.name || ev?.title || ev?.event_name || "", eventName);
+        if (score > bestScore) { best = ev; bestScore = score; }
+      }
+      if (best && bestScore >= .32) {
+        id = String(best?.id || best?.event_id || best?.eventId || "").trim();
+        directLogo = absUrl(best?.logo_url || best?.logo || best?.img || best?.image || "");
+      }
+    } catch {}
+  }
+
+  if (id) {
+    try {
+      const payload = await getJson(`${PUBLIC_EXACT_API}/events/${encodeURIComponent(id)}`, 16000);
+      const event = unwrapPublicPayload(payload);
+      const logo = absUrl(event?.logo_url || event?.logo || event?.img || event?.image || event?.eventLogo || "");
+      if (logo) {
+        publicEventLogoCache.set(key, { at: Date.now(), logo });
+        return logo;
+      }
+    } catch {}
+  }
+
+  publicEventLogoCache.set(key, { at: Date.now(), logo: directLogo });
+  return directLogo;
 }
 
 async function getHostedMatchDetail(matchId, preferredBridge = DEFAULT_BRIDGE) {
@@ -508,6 +634,7 @@ async function buildExactMatchFromDetails(id, details, preferredBridge) {
       pinned: true,
       exactDetails: true,
       inferredStatus: status,
+      eventId: String(details?.eventId || details?.event_id || ""),
       usedDetailEventLogo: Boolean(eventLogo),
       team1Profile: team1.metadataResolved,
       team2Profile: team2.metadataResolved
@@ -727,37 +854,63 @@ async function getPinnedMatch(matchId, preferredBridge = DEFAULT_BRIDGE) {
   const id = parseVlrMatchId(matchId);
   if (!id) return null;
 
-  // Exact match details are the first authority for LIVE/completed states.
+  // Public exact-match endpoint is queried first for a pasted match. It is
+  // on-demand and is much more reliable for older completed series than the
+  // paginated results feed.
+  const publicExact = await getPublicExactMatch(id);
+  if (publicExact) {
+    const exactEventLogo =
+      publicExact.eventLogo ||
+      await getPublicEventLogo(publicExact.eventId, publicExact.event);
+    if (exactEventLogo) publicExact.eventLogo = exactEventLogo;
+
+    const exactStatus = inferDetailStatus(publicExact);
+    if (exactStatus === "completed" || exactStatus === "running") {
+      return await buildExactMatchFromDetails(id, publicExact, preferredBridge);
+    }
+  }
+
+  // Secondary exact-match source.
   const hosted = await getHostedMatchDetail(id, preferredBridge);
   const hostedLocal = hosted?.detail ? hostedDetailToLocal(hosted.detail) : null;
   const hostedStatus = hostedLocal ? inferDetailStatus(hostedLocal) : "upcoming";
 
   if (hostedLocal && hostedStatus !== "upcoming") {
+    const logo =
+      publicExact?.eventLogo ||
+      await getPublicEventLogo(publicExact?.eventId, publicExact?.event || hostedLocal?.event) ||
+      hostedLocal.eventLogo;
+    if (logo) hostedLocal.eventLogo = logo;
     return await buildExactMatchFromDetails(id, hostedLocal, hosted?.base || preferredBridge);
   }
 
-  // Results feed is a second authority and fixes cases where match/details is
-  // temporarily stale/unavailable but VLR already marks the match as final.
+  // Recent result feed can resolve final scores quickly for recently finished matches.
   const resultHit = await findMatchInResults(id, preferredBridge);
   if (resultHit?.item) {
-    return await buildCompletedFromResultItem(
+    const completed = await buildCompletedFromResultItem(
       resultHit.item,
       resultHit.base || preferredBridge,
-      hostedLocal
+      hostedLocal || publicExact
     );
+    if (completed && publicExact?.eventLogo) completed.eventLogo = publicExact.eventLogo;
+    return completed;
   }
 
-  // Future match: use the upcoming feed for its countdown.
+  // Future match: use the upcoming feed for the countdown, but keep exact
+  // event metadata/logo from the exact-match provider when available.
   try {
     const upcoming = await getUpcomingFromBridge(preferredBridge);
     const item = upcoming.items.find(seg => matchIdFromPage(seg?.match_page) === id);
     if (item) {
       const result = await buildUpcomingFromBridgeItem(item, upcoming.base);
-      if (hostedLocal) {
-        const exactEvent = hostedLocal?.event || "";
-        if (exactEvent) result.event = exactEvent;
-        if (hostedLocal?.stage) result.stage = hostedLocal.stage;
-        const exactLogo = await getEventLogo(upcoming.base, exactEvent || result.event);
+      const exactMeta = publicExact || hostedLocal;
+      if (exactMeta) {
+        if (exactMeta?.event) result.event = exactMeta.event;
+        if (exactMeta?.stage) result.stage = exactMeta.stage;
+        const exactLogo =
+          exactMeta?.eventLogo ||
+          await getPublicEventLogo(exactMeta?.eventId, exactMeta?.event || result.event) ||
+          await getEventLogo(upcoming.base, exactMeta?.event || result.event);
         if (exactLogo) result.eventLogo = exactLogo;
       }
       return result;
@@ -766,7 +919,15 @@ async function getPinnedMatch(matchId, preferredBridge = DEFAULT_BRIDGE) {
 
   const localUpcoming = await getLocalUpcomingMatches();
   const localItem = localUpcoming.find(item => String(item?.id || "") === id);
-  if (localItem) return await buildUpcomingFromLocalItem(localItem, preferredBridge);
+  if (localItem) {
+    const result = await buildUpcomingFromLocalItem(localItem, preferredBridge);
+    if (publicExact?.eventLogo) result.eventLogo = publicExact.eventLogo;
+    return result;
+  }
+
+  if (publicExact) {
+    return await buildExactMatchFromDetails(id, publicExact, preferredBridge);
+  }
 
   if (hostedLocal) {
     return await buildExactMatchFromDetails(id, hostedLocal, hosted?.base || preferredBridge);
