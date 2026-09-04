@@ -3,11 +3,48 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#050505">
 <title>VLR Overlay for VCT Matches</title>
 <style>
-:root{color-scheme:dark;--surface:rgba(255,255,255,.038);--surface-strong:rgba(255,255,255,.07);--line:rgba(255,255,255,.07);--text:#f2f3f5;--muted:#9da3ad;--faint:#6f7580;--blue:#5865f2;--blue2:#7983f5;--red:#ff4655}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;color:var(--text);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:radial-gradient(820px 560px at 12% -8%,rgba(88,101,242,.17),transparent 64%),radial-gradient(700px 480px at 94% 14%,rgba(255,70,85,.08),transparent 62%),linear-gradient(180deg,#050506,#000 75%);-webkit-font-smoothing:antialiased}body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.25;background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(#000,transparent 80%)}main{width:min(1100px,calc(100% - 28px));min-height:100vh;margin:auto;display:grid;place-items:center;padding:34px 0}.shell{width:100%;display:grid;grid-template-columns:1.08fr .92fr;gap:14px;align-items:stretch}.glass{background:var(--surface);backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);border:1px solid var(--line);box-shadow:0 22px 60px rgba(0,0,0,.64),inset 0 1px rgba(255,255,255,.025);position:relative;isolation:isolate} .cursor-aura{position:fixed;left:0;top:0;width:360px;height:360px;border-radius:50%;pointer-events:none;z-index:0;opacity:.9;transform:translate3d(calc(var(--mx,50vw) - 50%),calc(var(--my,50vh) - 50%),0);background:radial-gradient(circle,rgba(121,131,245,.20) 0%,rgba(88,101,242,.12) 28%,rgba(255,70,85,.07) 54%,transparent 72%);filter:blur(18px);transition:opacity .2s ease} .tilt-card{transform-style:preserve-3d;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease} .tilt-card::before{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(circle at var(--sx,50%) var(--sy,50%),rgba(255,255,255,.10),transparent 42%);opacity:0;transition:opacity .22s ease;pointer-events:none;z-index:0} .tilt-card:hover::before{opacity:1} .tilt-card:hover{border-color:rgba(121,131,245,.22);box-shadow:0 26px 66px rgba(0,0,0,.70),0 0 0 1px rgba(121,131,245,.06),0 0 36px rgba(88,101,242,.08)}.hero{border-radius:24px;padding:31px;position:relative;overflow:hidden}.hero::after{content:"";position:absolute;width:350px;height:270px;right:-170px;top:-100px;border-radius:50%;background:rgba(88,101,242,.15);filter:blur(58px);pointer-events:none}.eyebrow{display:flex;align-items:center;gap:7px;color:#adb2bb;text-transform:uppercase;letter-spacing:.14em;font-size:9px;font-weight:850}.dot{width:6px;height:6px;border-radius:99px;background:var(--red);box-shadow:0 0 12px rgba(255,70,85,.65)}h1{position:relative;font-size:46px;line-height:.98;letter-spacing:-.065em;margin:12px 0 12px;max-width:620px;z-index:1}.gradient{background:linear-gradient(135deg,#fff 12%,#b8beff 58%,#7983f5);-webkit-background-clip:text;background-clip:text;color:transparent}.lead{position:relative;color:var(--muted);font-size:14px;max-width:580px;margin:0;z-index:1}.features{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:27px;z-index:1}.feature{padding:13px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.022)}.feature b{display:block;color:#fff;font-size:11px;margin-bottom:3px}.feature span{color:var(--faint);font-size:10px}.preview-card{position:relative;margin-top:20px;padding:12px;border-radius:16px;border:1px solid var(--line);background:rgba(0,0,0,.22)}.mini-overlay{height:82px;border-radius:13px;border:1px solid rgba(121,131,245,.22);background:linear-gradient(90deg,rgba(255,70,85,.08),rgba(8,9,12,.92) 26%,rgba(8,9,12,.92) 74%,rgba(88,101,242,.08));display:grid;grid-template-columns:1fr 82px 1fr;align-items:center;overflow:hidden;box-shadow:0 0 28px rgba(88,101,242,.08)}.team{font-size:22px;font-weight:950;letter-spacing:-.05em;text-align:center}.center{text-align:center;border-left:1px solid var(--line);border-right:1px solid var(--line);height:100%;display:grid;place-items:center}.center small{display:block;font-size:7px;color:var(--faint);letter-spacing:.12em}.center b{font-size:16px}.form{border-radius:24px;padding:25px;display:flex;flex-direction:column;justify-content:center}.form h2{font-size:19px;letter-spacing:-.035em;margin:0 0 6px}.form>p{color:var(--muted);font-size:12px;margin:0 0 21px}.label{display:block;color:#b8bdc6;font-size:10px;font-weight:750;margin:0 0 7px}input{width:100%;border:1px solid var(--line);background:rgba(0,0,0,.30);color:#fff;border-radius:12px;padding:12px 13px;font:inherit;outline:none}input:focus{border-color:rgba(88,101,242,.50);box-shadow:0 0 0 3px rgba(88,101,242,.08)}input::placeholder{color:#626873}button{width:100%;margin-top:10px;border:1px solid rgba(121,131,245,.55);border-radius:12px;background:linear-gradient(180deg,var(--blue2),var(--blue));color:#fff;font:800 13px/1 Inter,system-ui,sans-serif;padding:13px;cursor:pointer;box-shadow:0 10px 30px rgba(88,101,242,.17);transition:.18s ease}button:hover{transform:translateY(-1px);box-shadow:0 14px 34px rgba(88,101,242,.26);border-color:#a0a7ff}button:disabled{opacity:.55;cursor:not-allowed;transform:none}.status{min-height:18px;color:#ff9ca5;font-size:10px;margin-top:8px}.security{margin-top:18px;padding:12px;border-radius:13px;border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--faint);font-size:10px}.security b{color:#b7bcc5}.brandline{display:flex;align-items:center;gap:9px;margin-bottom:23px}.brandmark{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:rgba(88,101,242,.12);border:1px solid rgba(88,101,242,.25);font-weight:950;letter-spacing:-.06em}.brandline span{font-size:12px;font-weight:800}.brandline small{display:block;color:var(--faint);font-size:9px;font-weight:500}@media(max-width:820px){main{padding:18px 0}.shell{grid-template-columns:1fr}.hero,.form{border-radius:20px}h1{font-size:38px}.features{grid-template-columns:1fr}.preview-card{display:none}}@media(max-width:480px){main{width:calc(100% - 12px)}.hero,.form{padding:20px 17px}h1{font-size:33px}}
+:root{
+  color-scheme:dark;
+  --bg:#030303;--surface:rgba(13,13,15,.78);--surface2:rgba(20,20,23,.74);
+  --line:rgba(255,255,255,.085);--line-red:rgba(255,70,85,.26);
+  --text:#f7f7f8;--muted:#a4a4ad;--faint:#6f7078;
+  --red:#ff4655;--red2:#ff6b76;--redGlow:rgba(255,70,85,.24)
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{
+  margin:0;color:var(--text);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  background:
+    radial-gradient(820px 520px at 12% -8%,rgba(255,70,85,.12),transparent 64%),
+    radial-gradient(660px 440px at 92% 8%,rgba(255,32,48,.075),transparent 62%),
+    linear-gradient(180deg,#09090a 0%,#030303 58%,#000 100%);
+  -webkit-font-smoothing:antialiased;overflow-x:hidden
+}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.22;background-image:linear-gradient(rgba(255,255,255,.017) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.017) 1px,transparent 1px);background-size:56px 56px;mask-image:linear-gradient(#000,transparent 82%)}
+.cursor-aura{position:fixed;left:0;top:0;width:390px;height:390px;border-radius:50%;pointer-events:none;z-index:0;opacity:.88;transform:translate3d(calc(var(--mx,55vw) - 50%),calc(var(--my,25vh) - 50%),0);background:radial-gradient(circle,rgba(255,85,98,.19),rgba(255,70,85,.10) 30%,rgba(255,20,42,.045) 55%,transparent 73%);filter:blur(19px)}
+main{position:relative;z-index:1;width:min(1120px,calc(100% - 28px));min-height:100vh;margin:auto;display:grid;place-items:center;padding:36px 0}
+.shell{width:100%;display:grid;grid-template-columns:1.06fr .94fr;gap:14px}
+.glass{position:relative;overflow:hidden;background:linear-gradient(180deg,rgba(17,17,20,.82),rgba(8,8,10,.78));backdrop-filter:blur(24px) saturate(145%);-webkit-backdrop-filter:blur(24px) saturate(145%);border:1px solid var(--line);box-shadow:0 24px 70px rgba(0,0,0,.64),inset 0 1px rgba(255,255,255,.03)}
+.glass::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(circle at var(--sx,50%) var(--sy,50%),rgba(255,255,255,.065),transparent 42%);opacity:0;transition:opacity .2s ease}
+.tilt-card{transform-style:preserve-3d;transition:transform .16s ease,border-color .18s ease,box-shadow .18s ease}
+.tilt-card:hover{border-color:rgba(255,70,85,.22);box-shadow:0 28px 80px rgba(0,0,0,.7),0 0 34px rgba(255,70,85,.07)}
+.tilt-card:hover::after{opacity:1}
+.hero{border-radius:25px;padding:34px}
+.hero::before{content:"";position:absolute;width:440px;height:330px;right:-210px;top:-160px;border-radius:50%;background:rgba(255,70,85,.10);filter:blur(60px);pointer-events:none}
+.eyebrow{position:relative;display:flex;align-items:center;gap:8px;color:#bbbcc3;text-transform:uppercase;letter-spacing:.15em;font-size:9px;font-weight:850;z-index:1}.dot{width:6px;height:6px;border-radius:50%;background:var(--red);box-shadow:0 0 13px var(--red)}
+h1{position:relative;z-index:1;font-size:48px;line-height:.98;letter-spacing:-.065em;margin:13px 0 13px;max-width:620px}.accent{background:linear-gradient(135deg,#fff 7%,#ffb0b6 52%,#ff4655 96%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{position:relative;z-index:1;color:var(--muted);font-size:14px;max-width:600px;margin:0}
+.flow{position:relative;z-index:1;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:28px}.flow-card{padding:14px 13px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.022)}.flow-card small{display:block;color:#ff8e98;font-size:8px;font-weight:900;letter-spacing:.12em;margin-bottom:6px}.flow-card b{display:block;font-size:12px}.flow-card span{display:block;color:var(--faint);font-size:10px;margin-top:4px}
+.hero-note{position:relative;z-index:1;margin-top:18px;padding:12px 13px;border-radius:13px;border:1px solid rgba(255,70,85,.13);background:rgba(255,70,85,.035);color:#8d8e96;font-size:10px}.hero-note b{color:#d7d7dc}
+.form{border-radius:25px;padding:27px;display:flex;flex-direction:column;justify-content:center}.brandline{display:flex;align-items:center;gap:10px;margin-bottom:27px}.brandmark{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(145deg,rgba(255,70,85,.18),rgba(255,70,85,.05));border:1px solid rgba(255,70,85,.27);font-weight:950;letter-spacing:-.06em;box-shadow:0 0 22px rgba(255,70,85,.08)}.brandline b{display:block;font-size:12px}.brandline small{display:block;color:var(--faint);font-size:9px;margin-top:1px}
+.form h2{font-size:20px;letter-spacing:-.035em;margin:0 0 6px}.form>p{color:var(--muted);font-size:12px;margin:0 0 22px}.label{display:block;color:#b8b8bf;font-size:9px;font-weight:850;letter-spacing:.05em;margin:0 0 7px}input{width:100%;border:1px solid var(--line);background:rgba(0,0,0,.34);color:#fff;border-radius:12px;padding:13px;font:inherit;outline:none;transition:.18s}input:focus{border-color:rgba(255,70,85,.48);box-shadow:0 0 0 3px rgba(255,70,85,.07),0 0 22px rgba(255,70,85,.05)}input::placeholder{color:#62626a}
+button{width:100%;margin-top:10px;border:1px solid rgba(255,111,122,.42);border-radius:12px;background:linear-gradient(180deg,#ff5966,#e93645);color:#fff;font:850 13px/1 Inter,system-ui,sans-serif;padding:13px;cursor:pointer;box-shadow:0 11px 30px rgba(255,70,85,.15);transition:.18s}button:hover{transform:translateY(-1px);box-shadow:0 15px 36px rgba(255,70,85,.25);border-color:#ff8993}button:disabled{opacity:.55;cursor:not-allowed;transform:none}.status{min-height:18px;color:#ff9ca5;font-size:10px;margin-top:8px}.security{margin-top:19px;padding:12px;border-radius:13px;border:1px solid var(--line);background:rgba(255,255,255,.018);color:var(--faint);font-size:10px}.security b{color:#bfc0c6}
+@media(max-width:820px){main{padding:18px 0}.shell{grid-template-columns:1fr}.hero,.form{border-radius:20px}h1{font-size:39px}.flow{grid-template-columns:1fr}.cursor-aura{display:none}}
+@media(max-width:480px){main{width:calc(100% - 12px)}.hero,.form{padding:21px 18px}h1{font-size:34px}}
+@media(prefers-reduced-motion:reduce){.tilt-card{transition:none}.cursor-aura{display:none}}
 </style>
 </head>
 <body>
@@ -16,61 +53,39 @@
   <div class="shell">
     <section class="hero glass tilt-card" data-tilt>
       <div class="eyebrow"><span class="dot"></span>VCT / VLR · Browser Source</div>
-      <h1><span class="gradient">VLR Overlay</span><br>for VCT Matches</h1>
-      <p class="lead">Crea un overlay en la nube para tus co-streams de VALORANT. Selecciona la match, copia una URL y úsala directamente en OBS.</p>
-      <div class="features">
-        <div class="feature"><b>Live + próximo partido</b><span>VLR alimenta el estado del overlay.</span></div>
-        <div class="feature"><b>Panel privado</b><span>Cada room tiene su propia clave.</span></div>
-        <div class="feature"><b>Listo para OBS</b><span>500 × 160 · 30 FPS recomendado.</span></div>
+      <h1><span class="accent">VLR Overlay</span><br>for VCT Matches</h1>
+      <p class="lead">Crea un overlay en la nube para tus co-streams de VALORANT. Elige la match, ajusta el look y pega una sola URL en OBS.</p>
+      <div class="flow">
+        <div class="flow-card"><small>01 · DATA</small><b>VLR en tiempo real</b><span>Live, próximo partido y score.</span></div>
+        <div class="flow-card"><small>02 · CONTROL</small><b>Panel privado</b><span>Tu room y tu clave de administración.</span></div>
+        <div class="flow-card"><small>03 · OBS</small><b>Browser Source</b><span>500 × 160 · fondo transparente.</span></div>
       </div>
-      <div class="preview-card tilt-card" data-tilt aria-hidden="true"><div class="mini-overlay"><div class="team">NRG</div><div class="center"><div><small>STARTS IN</small><b>1h 26m</b></div></div><div class="team">100T</div></div></div>
+      <div class="hero-note"><b>Sin datos de ejemplo.</b> El overlay solo muestra la partida que VLR detecte o la que tú fijes desde el panel.</div>
     </section>
 
     <section class="form glass tilt-card" data-tilt>
-      <div class="brandline"><div class="brandmark">VLR</div><div><span>VLR Overlay</span><small>for VCT Matches</small></div></div>
+      <div class="brandline"><div class="brandmark">VLR</div><div><b>VLR Overlay</b><small>for VCT Matches</small></div></div>
       <h2>Crea tu overlay</h2>
       <p>No necesitas instalar Node ni abrir CMD. Tu Browser Source vive en la nube.</p>
       <label class="label" for="name">NOMBRE DEL OVERLAY</label>
       <input id="name" maxlength="60" placeholder="Ej. Co-stream Khriz">
       <button id="create">Crear overlay</button>
       <div class="status" id="status"></div>
-      <div class="security"><b>Privado por defecto.</b> El panel de control usa una clave secreta; la URL de OBS es de solo lectura.</div>
+      <div class="security"><b>Privado por defecto.</b> El panel usa una clave secreta y la URL de OBS es de solo lectura.</div>
     </section>
   </div>
 </main>
 <script>
 const btn=document.querySelector('#create'),status=document.querySelector('#status'),name=document.querySelector('#name');
 const aura=document.querySelector('.cursor-aura');
-const tiltCards=[...document.querySelectorAll('[data-tilt]')];
-
-function initPointerFx(){
-  const setPointer=(x,y)=>{
-    document.documentElement.style.setProperty('--mx', `${x}px`);
-    document.documentElement.style.setProperty('--my', `${y}px`);
-  };
-  window.addEventListener('pointermove',e=>setPointer(e.clientX,e.clientY),{passive:true});
-  window.addEventListener('pointerdown',()=>aura.style.opacity='.98');
-  window.addEventListener('pointerup',()=>aura.style.opacity='.9');
-  setPointer(window.innerWidth*0.58, window.innerHeight*0.30);
-
-  tiltCards.forEach(card=>{
-    const reset=()=>{card.style.transform='perspective(1200px) rotateX(0deg) rotateY(0deg) translateY(0)';card.style.setProperty('--sx','50%');card.style.setProperty('--sy','50%');};
-    card.addEventListener('pointermove',e=>{
-      const rect=card.getBoundingClientRect();
-      const px=(e.clientX-rect.left)/rect.width;
-      const py=(e.clientY-rect.top)/rect.height;
-      const rx=(0.5-py)*8;
-      const ry=(px-0.5)*10;
-      card.style.transform=`perspective(1200px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) translateY(-2px)`;
-      card.style.setProperty('--sx', `${(px*100).toFixed(1)}%`);
-      card.style.setProperty('--sy', `${(py*100).toFixed(1)}%`);
-    },{passive:true});
-    card.addEventListener('pointerleave', reset);
-    reset();
-  });
+function bindTilt(card){
+  if(card.dataset.tiltReady)return; card.dataset.tiltReady='1';
+  const reset=()=>{card.style.transform='perspective(1200px) rotateX(0deg) rotateY(0deg) translateY(0)';card.style.setProperty('--sx','50%');card.style.setProperty('--sy','50%')};
+  card.addEventListener('pointermove',e=>{const r=card.getBoundingClientRect(),px=(e.clientX-r.left)/r.width,py=(e.clientY-r.top)/r.height;card.style.transform=`perspective(1200px) rotateX(${((.5-py)*6).toFixed(2)}deg) rotateY(${((px-.5)*8).toFixed(2)}deg) translateY(-2px)`;card.style.setProperty('--sx',`${(px*100).toFixed(1)}%`);card.style.setProperty('--sy',`${(py*100).toFixed(1)}%`)} ,{passive:true});
+  card.addEventListener('pointerleave',reset); reset();
 }
-initPointerFx();
-
+document.querySelectorAll('[data-tilt]').forEach(bindTilt);
+window.addEventListener('pointermove',e=>{document.documentElement.style.setProperty('--mx',`${e.clientX}px`);document.documentElement.style.setProperty('--my',`${e.clientY}px`)},{passive:true});
 btn.onclick=async()=>{btn.disabled=true;status.textContent='Creando…';try{const r=await fetch('/api/rooms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name.value||'VLR Overlay'})});const d=await r.json();if(!r.ok)throw new Error(d.error||'No se pudo crear');location.href=d.room.adminUrl}catch(e){status.textContent=e.message;btn.disabled=false}};
 name.addEventListener('keydown',e=>{if(e.key==='Enter')btn.click()});
 </script>
