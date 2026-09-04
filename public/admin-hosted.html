@@ -3,262 +3,239 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VALORANT Live Overlay · Admin</title>
+<meta name="theme-color" content="#000000">
+<title>VLR Overlay for VCT Matches · Control</title>
 <style>
 :root{
   color-scheme:dark;
-  --panel:#131720;--panel2:#191e28;--text:#f4f7fb;--muted:#8d97a8;
-  --line:#2a3140;--accent:#ff4655;--good:#50d890;--warn:#f1bd58;--danger:#ff5e69
+  --bg:#000;
+  --bg-soft:#0a0a0b;
+  --surface:rgba(255,255,255,.035);
+  --surface-strong:rgba(255,255,255,.065);
+  --surface-hover:rgba(88,101,242,.14);
+  --line:rgba(255,255,255,.07);
+  --line-strong:rgba(88,101,242,.38);
+  --text:#f2f3f5;
+  --text-soft:#dbdee1;
+  --muted:#9da3ad;
+  --faint:#6f7580;
+  --blue:#5865f2;
+  --blue-strong:#7983f5;
+  --blue-glow:rgba(88,101,242,.30);
+  --red:#ff4655;
+  --red-soft:rgba(255,70,85,.14);
+  --green:#52d695;
+  --amber:#f1bd58;
+  --shadow:rgba(0,0,0,.72);
 }
 *{box-sizing:border-box}
+html{scroll-behavior:smooth}
 body{
   margin:0;min-height:100vh;color:var(--text);
-  background:linear-gradient(160deg,#0b0d12,#10141d 60%,#0b0d12);
-  font:16px/1.48 Inter,system-ui,sans-serif
+  background:
+    radial-gradient(900px 560px at 14% -5%,rgba(88,101,242,.14),transparent 62%),
+    radial-gradient(760px 520px at 96% 10%,rgba(255,70,85,.08),transparent 60%),
+    linear-gradient(180deg,#050506 0%,#000 72%);
+  font:15px/1.48 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;
 }
-main{max-width:1180px;margin:auto;padding:30px 20px 64px}
-h1{margin:0;font-size:30px;letter-spacing:-.045em}
-.sub{color:var(--muted);margin:7px 0 20px;font-size:14px}
-.top{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:18px;align-items:center}
-.pill{
-  border:1px solid var(--line);background:var(--panel);padding:8px 11px;
-  border-radius:999px;color:var(--muted);font-size:13px
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;opacity:.25;z-index:-1;
+  background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);
+  background-size:54px 54px;
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.65),transparent 72%);
 }
-.pill b{color:#fff}
-.pill.good{border-color:rgba(80,216,144,.38);color:#9be7bd}
-.pill.warn{border-color:rgba(241,189,88,.4);color:#f5d28f}
-.grid{display:grid;grid-template-columns:1.08fr .92fr;gap:18px;align-items:start}
-.card{background:rgba(19,23,32,.92);border:1px solid var(--line);border-radius:16px;padding:17px}
-h2{font-size:13px;text-transform:uppercase;letter-spacing:.13em;color:#a9b2c2;margin:0 0 13px}
-.matches{display:grid;gap:9px}
-.source-mode{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}
-.source-mode button{font-size:13px;font-weight:800}
-.source-mode button.active{border-color:var(--accent);background:rgba(255,70,85,.12);box-shadow:inset 0 0 0 1px rgba(255,70,85,.18)}
-.pin-panel{padding:12px;border:1px solid var(--line);border-radius:12px;background:#10141c;margin-bottom:14px}
-.pin-panel[hidden]{display:none}
-.pin-row{display:grid;grid-template-columns:1fr auto;gap:7px;margin-top:8px}
-.pin-row input{min-width:0}
-.pinned-card{padding:13px;border:1px solid rgba(255,70,85,.42);border-radius:12px;background:linear-gradient(135deg,rgba(255,70,85,.08),#10141c 50%);margin-bottom:14px}
-.pinned-card[hidden]{display:none}
-.pin-badge{display:inline-block;font-size:9px;font-weight:900;letter-spacing:.13em;color:#ff9ca5;border:1px solid rgba(255,70,85,.38);padding:4px 6px;border-radius:999px;margin-bottom:7px}
-.pin-title{font-size:19px;font-weight:950;letter-spacing:-.025em}
-.pin-eta{font-size:20px;font-weight:950;text-align:right}
-.pin-actions{display:flex;gap:7px;margin-top:10px}
-.pin-actions button{font-size:12px;padding:8px 10px}
-.section-sep{height:1px;background:var(--line);margin:14px 0}
-.match{
-  width:100%;text-align:left;display:grid;grid-template-columns:1fr auto;gap:14px;
-  padding:14px;background:#10141c;border:1px solid var(--line);color:#fff;border-radius:11px;cursor:pointer
+a{color:inherit;text-decoration:none}
+button,input{font:inherit}
+button{user-select:none}
+.app{width:min(1480px,calc(100% - 28px));margin:14px auto 38px;display:grid;grid-template-columns:206px minmax(0,1fr);gap:14px;align-items:start}
+.glass{
+  background:var(--surface);backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);
+  border:1px solid var(--line);box-shadow:0 18px 48px var(--shadow),inset 0 1px rgba(255,255,255,.025)
 }
-.match.selected{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}
-.teams{font-weight:900;font-size:18px;letter-spacing:-.02em}
-.meta{display:block;color:var(--muted);font-size:12px;margin-top:3px}
-.score{font-size:21px;font-weight:950;align-self:center;text-align:right;line-height:1.05}
-.eta-label{display:block;font-size:9px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.sidebar{
+  position:sticky;top:14px;height:calc(100vh - 28px);min-height:620px;border-radius:22px;padding:15px 12px;
+  display:flex;flex-direction:column;overflow:hidden
+}
+.sidebar::before{content:"";position:absolute;width:190px;height:190px;left:-86px;top:-80px;border-radius:50%;background:rgba(88,101,242,.14);filter:blur(50px);pointer-events:none}
+.brand{position:relative;display:flex;align-items:center;gap:10px;padding:8px 9px 18px;border-bottom:1px solid var(--line)}
+.brand-mark{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font-weight:950;letter-spacing:-.07em;background:linear-gradient(145deg,rgba(88,101,242,.28),rgba(88,101,242,.08));border:1px solid rgba(121,131,245,.28);box-shadow:0 0 22px rgba(88,101,242,.12)}
+.brand-mark span{background:linear-gradient(135deg,#fff 25%,#9da6ff 85%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand-copy b{display:block;font-size:13px;letter-spacing:-.02em}.brand-copy small{display:block;margin-top:1px;color:var(--faint);font-size:10px;line-height:1.25}
+.nav{display:grid;gap:6px;margin-top:14px}
+.nav a{display:flex;align-items:center;gap:10px;padding:10px 11px;border-radius:12px;color:var(--muted);border:1px solid transparent;transition:.2s ease}
+.nav a:hover{color:#fff;background:var(--surface-hover);border-color:rgba(88,101,242,.22);box-shadow:0 0 16px rgba(88,101,242,.08)}
+.nav svg{width:16px;height:16px;opacity:.88}
+.nav strong{font-size:12px;font-weight:750}
+.sidebar-bottom{margin-top:auto;padding:12px 9px 4px;border-top:1px solid var(--line)}
+.sidebar-bottom .mini-label{font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.12em}.sidebar-bottom .mini-value{font-size:11px;color:var(--muted);margin-top:4px;word-break:break-all}
+.content{min-width:0}
+.hero{position:relative;border-radius:22px;padding:22px 24px;margin-bottom:14px;overflow:hidden}
+.hero::after{content:"";position:absolute;width:420px;height:220px;right:-130px;top:-130px;border-radius:50%;background:rgba(88,101,242,.12);filter:blur(56px);pointer-events:none}
+.hero-top{position:relative;display:flex;justify-content:space-between;gap:20px;align-items:flex-start;z-index:1}
+.eyebrow{display:flex;align-items:center;gap:7px;color:#aab0ba;text-transform:uppercase;letter-spacing:.13em;font-size:9px;font-weight:850;margin-bottom:6px}.eyebrow .dot{width:6px;height:6px;border-radius:99px;background:var(--red);box-shadow:0 0 12px rgba(255,70,85,.65)}
+h1{margin:0;font-size:30px;line-height:1.05;letter-spacing:-.055em}.title-accent{background:linear-gradient(135deg,#fff 14%,#aeb5ff 62%,#7983f5);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--muted);margin:8px 0 0;font-size:13px;max-width:680px}
+.hero-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.top{position:relative;z-index:1;display:flex;gap:7px;flex-wrap:wrap;margin-top:18px;align-items:center}
+.pill{border:1px solid var(--line);background:rgba(0,0,0,.2);backdrop-filter:blur(12px);padding:7px 10px;border-radius:999px;color:var(--muted);font-size:11px}.pill b{color:#fff}.pill.good{border-color:rgba(82,214,149,.25);color:#9be8bd}.pill.warn{border-color:rgba(241,189,88,.28);color:#f5d28f}
 button{
-  border:1px solid var(--line);background:var(--panel2);color:#fff;border-radius:10px;
-  padding:11px 14px;font:inherit;cursor:pointer
+  border:1px solid var(--line);background:rgba(255,255,255,.035);color:#fff;border-radius:11px;padding:10px 13px;cursor:pointer;
+  transition:background .18s ease,border-color .18s ease,transform .18s ease,box-shadow .18s ease
 }
-button:hover{border-color:#566075}
-button:disabled{opacity:.55;cursor:not-allowed}
-.primary{background:var(--accent);border-color:var(--accent);font-weight:800}
-.danger{border-color:rgba(255,94,105,.45);color:#ffadb3}
-.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1}
-.setting{margin-top:13px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#10141c}
-.setting-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:8px}
-.valuepill{font-weight:800}
-input[type=range]{width:100%;accent-color:var(--accent)}
-input[type=text]{
-  width:100%;border:1px solid var(--line);background:#0c1017;color:#fff;
-  border-radius:10px;padding:10px 11px;font:inherit
-}
-.urlbox{background:#10141c;border:1px solid var(--line);padding:11px 12px;border-radius:12px;font-size:13px;margin-top:10px}
-code{color:#dfe7f6;word-break:break-all}
-.short-url{font-size:13px;font-weight:700}
-.copy{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
-.copy button{font-size:12px;padding:8px 10px}
-.status{
-  padding:10px 12px;border:1px solid rgba(80,216,144,.35);border-radius:12px;
-  color:#a7efc8;margin-bottom:14px;background:#10141c
-}
-.obs-guide{
-  margin-top:14px;padding:14px;border:1px solid rgba(95,213,232,.28);
-  border-radius:14px;background:linear-gradient(135deg,rgba(95,213,232,.08),#10141c 52%)
-}
-.obs-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
-.obs-title{font-weight:850}
-.obs-badge{
-  white-space:nowrap;border:1px solid rgba(95,213,232,.32);color:#a9edf6;
-  padding:5px 8px;border-radius:999px;font-size:11px
-}
-.obs-values{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}
-.obs-value{padding:9px 8px;text-align:center;border:1px solid var(--line);border-radius:10px;background:#0d1118}
-.obs-value b{font-size:18px;display:block}.obs-value span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
-.obs-main-copy{
-  width:100%;margin-top:10px;padding:12px 14px!important;
-  background:var(--accent);border-color:var(--accent)!important;font-weight:900;letter-spacing:.02em
-}
-.obs-note{margin-top:7px;text-align:center;color:var(--muted);font-size:11px}
-.room-tools{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
-.room-tools summary{
-  cursor:pointer;color:#9aa6b7;font-size:12px;user-select:none;
-  list-style:none;display:flex;justify-content:space-between;align-items:center
-}
-.room-tools summary::-webkit-details-marker{display:none}
-.room-tools summary::after{content:"▾";font-size:12px;color:#778295;transition:.16s ease}
-.room-tools[open] summary::after{transform:rotate(180deg)}
-.room-tools-content{padding-top:11px}
-.room-tools .meta{margin-bottom:8px}
-.preview-shell{margin-top:20px}
-.preview-label{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px;margin-bottom:7px}
-.preview{
-  min-height:206px;display:grid;place-items:center;border:1px solid var(--line);
-  background:repeating-conic-gradient(#1a1f29 0 25%,#11151d 0 50%) 50%/20px 20px;
-  border-radius:16px;overflow:auto;padding:22px
-}
-.preview iframe{width:500px;height:160px;max-width:100%;border:1px dashed rgba(255,255,255,.17);display:block;background:transparent!important;color-scheme:normal}
-.toast{
-  position:fixed;right:18px;bottom:18px;background:#171c25;border:1px solid var(--line);
-  border-radius:11px;padding:10px 13px;box-shadow:0 12px 35px rgba(0,0,0,.35);
-  opacity:0;transform:translateY(8px);pointer-events:none;transition:.18s ease
-}
-.toast.show{opacity:1;transform:translateY(0)}
-@media(max-width:780px){.grid{grid-template-columns:1fr}.obs-values{grid-template-columns:repeat(3,1fr)}}
+button:hover{background:rgba(255,255,255,.065);border-color:rgba(255,255,255,.14);transform:translateY(-1px)}button:active{transform:translateY(0) scale(.985)}button:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.primary{background:linear-gradient(180deg,var(--blue-strong),var(--blue));border-color:rgba(121,131,245,.62);font-weight:800;box-shadow:0 8px 24px rgba(88,101,242,.18)}.primary:hover{background:linear-gradient(180deg,#8790fa,#6571f5);border-color:#9ba3ff;box-shadow:0 10px 30px rgba(88,101,242,.28)}
+.danger{border-color:rgba(255,70,85,.25);color:#ff9ca5;background:rgba(255,70,85,.055)}.danger:hover{border-color:rgba(255,70,85,.48);background:rgba(255,70,85,.10)}
+.grid{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(390px,.92fr);gap:14px;align-items:start}
+.card{border-radius:20px;padding:17px;min-width:0}.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:13px}.section-copy h2{font-size:12px;text-transform:uppercase;letter-spacing:.13em;color:#c6cad1;margin:0}.section-copy p{color:var(--faint);font-size:11px;margin:4px 0 0}
+.status{display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid rgba(82,214,149,.18);border-radius:13px;color:#a6eec6;margin-bottom:13px;background:rgba(82,214,149,.035);font-size:12px}.status::before{content:"";width:7px;height:7px;border-radius:99px;background:var(--green);box-shadow:0 0 10px rgba(82,214,149,.55);flex:0 0 auto}
+.source-mode{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:11px;padding:4px;background:rgba(0,0,0,.24);border:1px solid var(--line);border-radius:14px}.source-mode button{font-size:12px;font-weight:800;border-color:transparent;background:transparent;box-shadow:none}.source-mode button:hover{background:rgba(255,255,255,.035);border-color:transparent;transform:none}.source-mode button.active{border-color:rgba(88,101,242,.28);background:var(--surface-strong);box-shadow:0 0 18px var(--blue-glow);color:#fff}
+.pin-panel{padding:13px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.022);margin-bottom:13px}.pin-panel[hidden]{display:none}.pin-panel>b{font-size:13px}.pin-row{display:grid;grid-template-columns:1fr auto;gap:7px;margin-top:9px}.pin-row input{min-width:0}
+.pinned-card{padding:13px;border:1px solid rgba(88,101,242,.28);border-radius:15px;background:radial-gradient(120% 130% at 0 0,rgba(88,101,242,.12),transparent 55%),rgba(255,255,255,.025);margin-bottom:13px;box-shadow:inset 0 1px rgba(255,255,255,.025)}.pinned-card[hidden]{display:none}.pin-badge{display:inline-block;font-size:8px;font-weight:900;letter-spacing:.14em;color:#b9bfff;border:1px solid rgba(88,101,242,.30);padding:4px 7px;border-radius:999px;margin-bottom:7px;background:rgba(88,101,242,.08)}.pin-title{font-size:18px;font-weight:900;letter-spacing:-.03em}.pin-eta{font-size:19px;font-weight:950;text-align:right}.pin-actions{display:flex;gap:7px;margin-top:10px}.pin-actions button{font-size:11px;padding:8px 10px}
+.section-sep{height:1px;background:var(--line);margin:14px 0}.matches{display:grid;gap:8px}.match{width:100%;text-align:left;display:grid;grid-template-columns:1fr auto;gap:14px;padding:13px 14px;background:rgba(255,255,255,.025);border:1px solid var(--line);color:#fff;border-radius:14px;cursor:pointer}.match:hover{background:rgba(255,255,255,.045);border-color:rgba(255,255,255,.12)}.match.selected{border-color:rgba(88,101,242,.46);background:rgba(88,101,242,.085);box-shadow:inset 3px 0 var(--blue),0 0 18px rgba(88,101,242,.08)}.teams{font-weight:900;font-size:17px;letter-spacing:-.025em}.meta{display:block;color:var(--muted);font-size:11px;margin-top:3px}.score{font-size:20px;font-weight:950;align-self:center;text-align:right;line-height:1.05}.eta-label{display:block;font-size:8px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);margin-bottom:4px}
+.setting{margin-top:10px;padding:12px 13px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.022)}.setting-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:8px}.setting-head b{font-size:12px}.valuepill{font-weight:850;color:#c9cdff;font-size:12px;border:1px solid rgba(88,101,242,.18);background:rgba(88,101,242,.08);padding:3px 7px;border-radius:999px;align-self:flex-start}input[type=range]{width:100%;accent-color:var(--blue)}
+input[type=text]{width:100%;border:1px solid var(--line);background:rgba(0,0,0,.30);color:#fff;border-radius:11px;padding:10px 11px;outline:none}input[type=text]:focus{border-color:rgba(88,101,242,.48);box-shadow:0 0 0 3px rgba(88,101,242,.08)}input::placeholder{color:#646a74}
+.obs-guide{margin-top:12px;padding:14px;border:1px solid rgba(88,101,242,.22);border-radius:16px;background:radial-gradient(120% 110% at 0 0,rgba(88,101,242,.11),transparent 58%),rgba(255,255,255,.025)}.obs-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.obs-title{font-weight:850;font-size:13px}.obs-badge{white-space:nowrap;border:1px solid rgba(88,101,242,.28);color:#c1c6ff;background:rgba(88,101,242,.07);padding:5px 8px;border-radius:999px;font-size:9px}.obs-values{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}.obs-value{padding:10px 8px;text-align:center;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.24)}.obs-value b{font-size:18px;display:block}.obs-value span{font-size:9px;color:var(--faint);text-transform:uppercase;letter-spacing:.09em}.obs-main-copy{width:100%;margin-top:10px;padding:12px 14px!important;background:linear-gradient(180deg,#ff5966,#ff4655);border-color:rgba(255,89,102,.58)!important;font-weight:900;letter-spacing:.015em;box-shadow:0 10px 28px rgba(255,70,85,.14)}.obs-main-copy:hover{background:linear-gradient(180deg,#ff6b76,#ff4f5d);border-color:#ff7d86!important;box-shadow:0 12px 34px rgba(255,70,85,.23)}.obs-note{margin-top:7px;text-align:center;color:var(--faint);font-size:10px}
+.urlbox{background:rgba(255,255,255,.022);border:1px solid var(--line);padding:11px 12px;border-radius:14px;font-size:12px;margin-top:9px}.urlbox b{font-size:12px}.urlbox code{display:block;margin-top:4px;color:#dfe2e8;word-break:break-all;font:700 11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.copy{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}.copy button{font-size:11px;padding:8px 10px}
+.room-tools{margin-top:12px;padding-top:11px;border-top:1px solid var(--line)}.room-tools summary{cursor:pointer;color:var(--muted);font-size:11px;user-select:none;list-style:none;display:flex;justify-content:space-between;align-items:center;padding:3px 1px}.room-tools summary::-webkit-details-marker{display:none}.room-tools summary::after{content:"▾";font-size:11px;color:var(--faint);transition:.16s ease}.room-tools[open] summary::after{transform:rotate(180deg)}.room-tools-content{padding-top:10px}.room-tools .meta{margin-bottom:8px}.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1}
+.preview-shell{border-radius:20px;padding:15px;margin-top:14px}.preview-label{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:11px;margin-bottom:9px;padding:0 2px}.preview{min-height:210px;display:grid;place-items:center;border:1px solid var(--line);background:repeating-conic-gradient(#14161a 0 25%,#0c0d10 0 50%) 50%/20px 20px;border-radius:16px;overflow:auto;padding:22px;box-shadow:inset 0 0 45px rgba(0,0,0,.35)}.preview iframe{width:500px;height:160px;max-width:100%;border:0;display:block;background:transparent!important;color-scheme:normal}
+.toast{position:fixed;right:20px;bottom:20px;background:rgba(18,19,23,.86);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:10px 13px;box-shadow:0 14px 38px rgba(0,0,0,.48);opacity:0;transform:translateY(8px);pointer-events:none;transition:.18s ease;font-size:12px}.toast.show{opacity:1;transform:translateY(0)}
+@media(max-width:1120px){.app{grid-template-columns:74px minmax(0,1fr)}.brand{padding-left:4px;padding-right:4px;justify-content:center}.brand-copy,.nav strong,.sidebar-bottom{display:none}.nav a{justify-content:center;padding:11px}.grid{grid-template-columns:1fr 1fr}}
+@media(max-width:880px){.app{display:block;width:min(100% - 20px,760px)}.sidebar{display:none}.grid{grid-template-columns:1fr}.hero-top{display:block}.hero-actions{justify-content:flex-start;margin-top:14px}.obs-values{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:520px){.app{width:calc(100% - 12px);margin-top:6px}.hero,.card,.preview-shell{border-radius:16px}.hero{padding:18px 16px}.card{padding:13px}h1{font-size:25px}.top{gap:6px}.pill{font-size:10px}.source-mode{grid-template-columns:1fr}.pin-row{grid-template-columns:1fr}.obs-values{gap:5px}.obs-value{padding:9px 5px}.preview{padding:10px;min-height:188px}}
 </style>
 </head>
 <body>
-<main>
-  <h1>VALORANT Live Overlay <span style="color:#ff4655">v4.2 · PINNED MATCH</span></h1>
-  <p class="sub">Controla tu overlay desde aquí. OBS solo necesita la URL del Browser Source.</p>
-
-  <div class="status" id="status">Conectando…</div>
-
-  <div class="top">
-    <span class="pill">Room: <b id="roomId">—</b></span>
-    <span class="pill" id="sourcePill">VLR: <b id="sourceState">…</b></span>
-    <span class="pill">Live: <b id="liveCount">0</b></span>
-    <span class="pill">Match: <b id="selectedLabel">—</b></span>
-    <button id="auto">Modo automático</button>
-    <button id="refresh">Actualizar datos</button>
-  </div>
-
-  <div class="grid">
-    <section class="card">
-      <h2>Qué quieres mostrar</h2>
-
-      <div class="source-mode">
-        <button id="modeAuto" class="active">Automático</button>
-        <button id="modePinned">Match específica</button>
-      </div>
-
-      <div id="pinPanel" class="pin-panel" hidden>
-        <b>Fijar una match de VLR</b>
-        <span class="meta">Pega el enlace de la partida o solamente su Match ID.</span>
-        <div class="pin-row">
-          <input id="pinInput" type="text" placeholder="https://www.vlr.gg/731774/...">
-          <button id="pinMatch" class="primary">Fijar match</button>
-        </div>
-        <span class="meta">El overlay mostrará el countdown y, cuando empiece, seguirá esa misma partida en LIVE.</span>
-      </div>
-
-      <div id="pinnedCard" class="pinned-card" hidden>
-        <span class="pin-badge">MATCH FIJADA</span>
-        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center">
-          <div>
-            <div id="pinnedTeams" class="pin-title">—</div>
-            <span id="pinnedMeta" class="meta">—</span>
-          </div>
-          <div id="pinnedEta" class="pin-eta">—</div>
-        </div>
-        <div class="pin-actions">
-          <button id="openPinned">Abrir en VLR</button>
-          <button id="unpinMatch">Volver a automático</button>
-        </div>
-      </div>
-
-      <div class="section-sep"></div>
-      <h2 id="matchesHeading">Matches live</h2>
-      <div id="matches" class="matches"></div>
-    </section>
-
-    <section class="card">
-      <h2>Tu overlay</h2>
-
-      <div class="setting">
-        <div class="setting-head">
-          <div><b>Opacidad</b><span class="meta">Fondo del panel</span></div>
-          <div class="valuepill" id="opacityValue">92%</div>
-        </div>
-        <input id="opacityRange" type="range" min="35" max="100" value="92">
-      </div>
-
-      <div class="setting">
-        <div class="setting-head">
-          <div><b>Glow</b><span class="meta">Brillo exterior</span></div>
-          <div class="valuepill" id="glowValue">82%</div>
-        </div>
-        <input id="glowRange" type="range" min="0" max="160" value="82">
-      </div>
-
-      <div class="obs-guide">
-        <div class="obs-head">
-          <div>
-            <div class="obs-title">Configuración recomendada para OBS</div>
-            <span class="meta">El overlay queda centrado automáticamente dentro de la fuente.</span>
-          </div>
-          <span class="obs-badge">Browser Source</span>
-        </div>
-        <div class="obs-values">
-          <div class="obs-value"><b id="obsWidth">500</b><span>Ancho</span></div>
-          <div class="obs-value"><b id="obsHeight">160</b><span>Alto</span></div>
-          <div class="obs-value"><b id="obsFps">30</b><span>FPS</span></div>
-        </div>
-        <button id="copyOverlay" class="obs-main-copy">COPIAR URL PARA OBS</button>
-        <div class="obs-note">500 × 160 · 30 FPS · fondo transparente</div>
-      </div>
-
-      <div class="urlbox">
-        <b>Browser Source de OBS</b><br>
-        <code id="overlayUrl" class="short-url"></code>
-        <span class="meta">La URL completa se copia con el botón de arriba.</span>
-      </div>
-
-      <div class="urlbox">
-        <b>Panel de control privado</b><br>
-        <code id="adminUrl" class="short-url"></code>
-        <span class="meta">No compartas esta URL: contiene tu clave de administración.</span>
-        <div class="copy">
-          <button id="copyAdmin">Copiar panel privado</button>
-        </div>
-      </div>
-
-      <details class="room-tools">
-        <summary>Administrar room</summary>
-        <div class="room-tools-content">
-          <div class="row">
-            <input id="roomName" type="text" maxlength="60" placeholder="Nombre del overlay">
-            <button id="rename">Renombrar</button>
-          </div>
-          <div class="copy">
-            <button id="regenKey">Regenerar clave privada</button>
-            <button id="deleteRoom" class="danger">Eliminar overlay</button>
-          </div>
-        </div>
-      </details>
-    </section>
-  </div>
-
-  <div class="preview-shell">
-    <div class="preview-label">
-      <span>Así se verá en OBS · fondo transparente</span>
-      <span>500 × 160</span>
+<div class="app">
+  <aside class="sidebar glass" aria-label="Navegación">
+    <div class="brand">
+      <div class="brand-mark"><span>VLR</span></div>
+      <div class="brand-copy"><b>VLR Overlay</b><small>for VCT Matches</small></div>
     </div>
-    <div class="preview"><iframe id="preview" scrolling="no"></iframe></div>
+    <nav class="nav">
+      <a href="#control" title="Control de match">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="12" r="2.5"/></svg>
+        <strong>Control</strong>
+      </a>
+      <a href="#obs" title="Configuración de OBS">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="14" rx="3"/><path d="M8 21h8M12 18v3"/></svg>
+        <strong>OBS</strong>
+      </a>
+      <a href="#preview-section" title="Vista previa">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+        <strong>Preview</strong>
+      </a>
+    </nav>
+    <div class="sidebar-bottom"><div class="mini-label">Browser Source</div><div class="mini-value">500 × 160 · 30 FPS</div></div>
+  </aside>
+
+  <div class="content">
+    <header class="hero glass">
+      <div class="hero-top">
+        <div>
+          <div class="eyebrow"><span class="dot"></span>VCT / VLR · OBS Overlay</div>
+          <h1><span class="title-accent">VLR Overlay</span> for VCT Matches</h1>
+          <p class="sub">Controla el partido, el look del overlay y tu Browser Source desde un panel privado. Los cambios aparecen en OBS al instante.</p>
+        </div>
+        <div class="hero-actions">
+          <button id="auto">Modo automático</button>
+          <button id="refresh">Actualizar datos</button>
+        </div>
+      </div>
+      <div class="top">
+        <span class="pill">Room: <b id="roomId">—</b></span>
+        <span class="pill" id="sourcePill">VLR: <b id="sourceState">…</b></span>
+        <span class="pill">Live: <b id="liveCount">0</b></span>
+        <span class="pill">Match: <b id="selectedLabel">—</b></span>
+      </div>
+    </header>
+
+    <div class="status" id="status">Conectando con VLR…</div>
+
+    <div class="grid">
+      <section class="card glass" id="control">
+        <div class="section-head">
+          <div class="section-copy"><h2>Qué quieres mostrar</h2><p>Automático o una match específica de VLR.</p></div>
+        </div>
+
+        <div class="source-mode">
+          <button id="modeAuto" class="active">Automático</button>
+          <button id="modePinned">Match específica</button>
+        </div>
+
+        <div id="pinPanel" class="pin-panel" hidden>
+          <b>Fijar una match de VLR</b>
+          <span class="meta">Pega el enlace de la partida o solamente su Match ID.</span>
+          <div class="pin-row">
+            <input id="pinInput" type="text" placeholder="https://www.vlr.gg/731774/...">
+            <button id="pinMatch" class="primary">Fijar match</button>
+          </div>
+          <span class="meta">El overlay mostrará el countdown y seguirá esa misma partida cuando pase a LIVE.</span>
+        </div>
+
+        <div id="pinnedCard" class="pinned-card" hidden>
+          <span class="pin-badge">MATCH FIJADA</span>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center">
+            <div><div id="pinnedTeams" class="pin-title">—</div><span id="pinnedMeta" class="meta">—</span></div>
+            <div id="pinnedEta" class="pin-eta">—</div>
+          </div>
+          <div class="pin-actions"><button id="openPinned">Abrir en VLR</button><button id="unpinMatch">Volver a automático</button></div>
+        </div>
+
+        <div class="section-sep"></div>
+        <div class="section-head" style="margin-bottom:9px"><div class="section-copy"><h2 id="matchesHeading">Matches live</h2><p>Selecciona cuál quieres mostrar en el overlay.</p></div></div>
+        <div id="matches" class="matches"></div>
+      </section>
+
+      <section class="card glass" id="obs">
+        <div class="section-head">
+          <div class="section-copy"><h2>Tu overlay</h2><p>Ajustes visuales y enlaces de OBS.</p></div>
+        </div>
+
+        <div class="setting">
+          <div class="setting-head"><div><b>Opacidad</b><span class="meta">Fondo del panel</span></div><div class="valuepill" id="opacityValue">92%</div></div>
+          <input id="opacityRange" type="range" min="35" max="100" value="92">
+        </div>
+
+        <div class="setting">
+          <div class="setting-head"><div><b>Glow</b><span class="meta">Brillo exterior</span></div><div class="valuepill" id="glowValue">82%</div></div>
+          <input id="glowRange" type="range" min="0" max="160" value="82">
+        </div>
+
+        <div class="obs-guide">
+          <div class="obs-head">
+            <div><div class="obs-title">Configuración recomendada para OBS</div><span class="meta">El overlay queda centrado automáticamente dentro de la fuente.</span></div>
+            <span class="obs-badge">Browser Source</span>
+          </div>
+          <div class="obs-values">
+            <div class="obs-value"><b id="obsWidth">500</b><span>Ancho</span></div>
+            <div class="obs-value"><b id="obsHeight">160</b><span>Alto</span></div>
+            <div class="obs-value"><b id="obsFps">30</b><span>FPS</span></div>
+          </div>
+          <button id="copyOverlay" class="obs-main-copy">COPIAR URL PARA OBS</button>
+          <div class="obs-note">500 × 160 · 30 FPS · fondo transparente</div>
+        </div>
+
+        <div class="urlbox"><b>Browser Source de OBS</b><code id="overlayUrl" class="short-url"></code><span class="meta">La URL completa se copia con el botón de arriba.</span></div>
+        <div class="urlbox"><b>Panel de control privado</b><code id="adminUrl" class="short-url"></code><span class="meta">No compartas esta URL: contiene tu clave de administración.</span><div class="copy"><button id="copyAdmin">Copiar panel privado</button></div></div>
+
+        <details class="room-tools">
+          <summary>Administrar room</summary>
+          <div class="room-tools-content">
+            <div class="row"><input id="roomName" type="text" maxlength="60" placeholder="Nombre del overlay"><button id="rename">Renombrar</button></div>
+            <div class="copy"><button id="regenKey">Regenerar clave privada</button><button id="deleteRoom" class="danger">Eliminar overlay</button></div>
+          </div>
+        </details>
+      </section>
+    </div>
+
+    <section class="preview-shell glass" id="preview-section">
+      <div class="preview-label"><span>Así se verá en OBS · fondo transparente</span><span>500 × 160</span></div>
+      <div class="preview"><iframe id="preview" scrolling="no"></iframe></div>
+    </section>
   </div>
-</main>
-
+</div>
 <div id="toast" class="toast"></div>
-
 <script>
 const $=s=>document.querySelector(s);
 const parts=location.pathname.split('/').filter(Boolean);

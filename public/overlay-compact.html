@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VALORANT Live Overlay v4.2.3</title>
+<title>VLR Overlay for VCT Matches</title>
 <style>
   *{box-sizing:border-box}
   html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent!important}
@@ -192,11 +192,10 @@
   }
   .logo img{
     max-width:32px;max-height:32px;object-fit:contain;
-    filter:drop-shadow(0 0 8px rgba(255,255,255,.05));
+    filter:drop-shadow(0 0 8px rgba(255,255,255,.08));
   }
-  .logo img.auto-light-logo,
-  .announce-logo img.auto-light-logo{
-    filter:brightness(0) invert(1) drop-shadow(0 0 8px rgba(255,255,255,.10));
+  .logo img.brand-100t{
+    filter:url(#brand100t) drop-shadow(0 0 7px rgba(255,255,255,.14)) drop-shadow(0 0 7px rgba(255,70,85,.10));
   }
   .fallback{
     width:32px;height:32px;display:grid;place-items:center;
@@ -226,7 +225,7 @@
     position:relative;
     z-index:2;
     display:flex;align-items:baseline;justify-content:center;gap:7px;
-    font-size:24px;font-weight:950;font-variant-numeric:tabular-nums;line-height:1
+    font-size:20px;font-weight:950;font-variant-numeric:tabular-nums;line-height:1
   }
   .round-number{
     display:inline-block;
@@ -246,31 +245,31 @@
   .map{
     position:relative;
     z-index:2;
-    margin-top:3px;
+    margin-top:4px;
     display:flex;
     flex-direction:column;
     align-items:center;
-    gap:1px;
+    gap:2px;
     min-width:78px;
   }
   .map-label{
-    font-size:7px;
-    letter-spacing:.14em;
+    font-size:8px;
+    letter-spacing:.15em;
     text-transform:uppercase;
-    color:rgba(255,255,255,.62);
+    color:rgba(255,255,255,.65);
     line-height:1;
   }
   .map-name{
     max-width:82px;
-    font-size:8px;
+    font-size:9.5px;
     font-weight:900;
-    letter-spacing:.08em;
+    letter-spacing:.09em;
     text-transform:uppercase;
-    color:rgba(255,255,255,.92);
+    color:rgba(255,255,255,.94);
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
-    line-height:1;
+    line-height:1.05;
   }
 
   .round-wave{
@@ -360,6 +359,7 @@
     width:40px;height:40px;display:grid;place-items:center;
   }
   .announce-logo img{max-width:38px;max-height:38px;object-fit:contain}
+  .announce-logo img.brand-100t{filter:url(#brand100t) drop-shadow(0 0 8px rgba(255,255,255,.14)) drop-shadow(0 0 8px rgba(255,70,85,.10))}
   .announce-logo .fallback{width:38px;height:38px;font-size:12px}
   .announce-code{
     font-size:30px;
@@ -426,14 +426,6 @@
     gap:4px;
     min-height:72px;
   }
-
-  /* OBS/CEF safety:
-     author CSS can beat the browser's default [hidden] rule in some builds.
-     Force inactive center panels to stay fully hidden. */
-  #liveCenter[hidden],
-  #upcomingCenter[hidden]{
-    display:none !important;
-  }
   .upcoming-kicker{
     font-size:7.5px;
     font-weight:800;
@@ -490,6 +482,19 @@
 </style>
 </head>
 <body>
+<svg width="0" height="0" aria-hidden="true" style="position:absolute;overflow:hidden">
+  <defs>
+    <!-- VLR serves the 100T mark as red + near-black. On a dark overlay the black half disappears.
+         This matrix keeps the red strokes red and maps neutral dark strokes to white. -->
+    <filter id="brand100t" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="
+        0 0 0 0 1
+        -1.18 1.18 0 0 1
+        -1.18 0 1.18 0 1
+        0 0 0 1 0"/>
+    </filter>
+  </defs>
+</svg>
 <div class="stage">
   <div class="wrap" id="overlay" hidden>
     <div class="outer-glow" aria-hidden="true"></div>
@@ -583,63 +588,16 @@ function shortText(v, max=20) {
   v = String(v || "");
   return v.length > max ? v.slice(0, max - 1) + "…" : v;
 }
-function normalizeTeamLogo(img) {
-  // VLR sometimes stores a black monochrome asset and makes it white on its
-  // own dark site with CSS. Our proxy returns the original PNG, so detect
-  // dark/neutral logos and light them automatically for this dark overlay.
-  try {
-    const canvas = document.createElement("canvas");
-    canvas.width = 36;
-    canvas.height = 36;
-
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-    let count = 0;
-    let luminance = 0;
-    let chroma = 0;
-
-    for (let i = 0; i < pixels.length; i += 4) {
-      const a = pixels[i + 3];
-      if (a < 40) continue;
-
-      const r = pixels[i];
-      const g = pixels[i + 1];
-      const b = pixels[i + 2];
-
-      // Ignore almost-white opaque canvas/background pixels if an upstream
-      // image was flattened instead of transparent.
-      if (r > 245 && g > 245 && b > 245) continue;
-
-      count++;
-      luminance += (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
-      chroma += Math.max(r, g, b) - Math.min(r, g, b);
-    }
-
-    if (count < 8) return;
-
-    const avgLum = luminance / count;
-    const avgChroma = chroma / count;
-
-    // Only neutral, genuinely dark marks are converted to white.
-    // Colored logos keep their original branding.
-    if (avgLum < 82 && avgChroma < 30) {
-      img.classList.add("auto-light-logo");
-    }
-  } catch (err) {
-    // If pixel inspection ever fails, keep the original image untouched.
-  }
-}
-
 function logoHtml(team) {
   const raw = String(team.logo || "").trim();
   if (raw) {
     const src = raw.startsWith("data:")
       ? raw
       : `/api/image-proxy?url=${encodeURIComponent(raw)}`;
-    return `<img src="${src.replace(/"/g,"&quot;")}" alt="" referrerpolicy="no-referrer" onload="normalizeTeamLogo(this)">`;
+    const teamCode = String(team.code || "").trim().toUpperCase();
+    const teamName = String(team.name || "").trim();
+    const brandClass = teamCode === "100T" || /100\s*thieves/i.test(teamName) ? " brand-100t" : "";
+    return `<img class="team-logo${brandClass}" src="${src.replace(/"/g,"&quot;")}" alt="" referrerpolicy="no-referrer">`;
   }
   return `<div class="fallback">${team.code}</div>`;
 }
@@ -681,18 +639,8 @@ function splitMapDisplay(value) {
 
   for (const part of parts) {
     const m = part.match(/^map\s*(\d+)$/i);
-    if (m) {
-      label = `MAP ${m[1]}`;
-      continue;
-    }
-
-    if (!name && !/^(live map|series live)$/i.test(part)) {
-      name = part
-        .replace(/\bpick\b/ig, "")
-        .replace(/\s{2,}/g, " ")
-        .trim()
-        .toUpperCase();
-    }
+    if (m) label = `MAP ${m[1]}`;
+    else if (!name && !/^(live map|series live)$/i.test(part)) name = part.toUpperCase();
   }
 
   if (!label) {
@@ -902,11 +850,6 @@ async function render(s) {
   el("statusBadgeText").textContent = isUpcoming ? "NEXT" : (isCompleted ? "FINAL" : "LIVE");
   el("liveCenter").hidden = usesStatusCenter;
   el("upcomingCenter").hidden = !usesStatusCenter;
-
-  // Do not rely only on the HTML `hidden` attribute: some OBS/CEF versions
-  // can still apply .upcoming-center { display:flex }. Set display explicitly.
-  el("liveCenter").style.display = usesStatusCenter ? "none" : "block";
-  el("upcomingCenter").style.display = usesStatusCenter ? "flex" : "none";
 
   if (usesStatusCenter) {
     el("team1").style.setProperty("--team-color", s.team1.color || "#ff4655");

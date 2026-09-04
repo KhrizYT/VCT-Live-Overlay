@@ -83,7 +83,7 @@ async function getJson(url, timeoutMs = 12000) {
     const res = await fetch(url, {
       headers: {
         "Accept": "application/json",
-        "User-Agent": "ValorantLiveOverlay/4.2-pinned-match"
+        "User-Agent": "VLROverlayForVCTMatches/4.3"
       },
       signal: ctrl.signal,
       cache: "no-store"

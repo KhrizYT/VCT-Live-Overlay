@@ -1,6 +1,6 @@
 {
-  "name": "valorant-live-overlay-hosted",
-  "version": "4.2.0",
+  "name": "vlr-overlay-for-vct-matches",
+  "version": "4.3.0",
   "private": true,
   "scripts": {
     "start": "node server.js"
