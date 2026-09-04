@@ -1,7 +1,7 @@
-# VLR Overlay for VCT Matches · v4.6
+# VLR Overlay for VCT Matches · v4.7
 
 > Nombre del proyecto actualizado a **VLR Overlay for VCT Matches**.
-> v4.6 elimina el matchup de demostración de la landing y reorganiza el Admin como un Live Studio: preview + Opacidad + Glow + OBS permanecen juntos en una columna sticky, con estética KZTTS en negro/rojo, iluminación del cursor y tilt sutil.
+> v4.7 elimina el matchup de demostración de la landing y reorganiza el Admin como un Live Studio: preview + Opacidad + Glow + OBS permanecen juntos en una columna sticky, con estética KZTTS en negro/rojo, iluminación del cursor y tilt sutil.
 
 Esta versión conserva el comportamiento visual/live de v3.0.4, pero cambia la distribución:
 **el usuario de OBS no instala nada**.
